@@ -1,6 +1,56 @@
 {
-  "version": 2,
-  "images": "Embedded in index.html",
-  "portrait_source": "Original public avatar, 150x150; approximate CSS silhouette mask",
-  "logo": "Embedded original supplied logo"
+  "version": 3,
+  "photos": [
+    {
+      "path": "assets/photos/andres-tarima.png",
+      "source": "User supplied",
+      "original_dimensions": [
+        655,
+        832
+      ],
+      "alt": "Andrés Aburto en una pose de doble bíceps sobre la tarima",
+      "silhouette": "Individual CSS clip-path"
+    },
+    {
+      "path": "assets/photos/andres-entrenamiento.png",
+      "source": "User supplied",
+      "original_dimensions": [
+        657,
+        785
+      ],
+      "alt": "Andrés Aburto entrenando en el gimnasio",
+      "silhouette": "Individual CSS clip-path"
+    },
+    {
+      "path": "assets/photos/andres-retrato.png",
+      "source": "User supplied",
+      "original_dimensions": [
+        642,
+        837
+      ],
+      "alt": "Retrato de Andrés Aburto con pañuelo en el gimnasio",
+      "silhouette": "Individual CSS clip-path"
+    },
+    {
+      "path": "assets/photos/andres-trayectoria.png",
+      "source": "User supplied",
+      "original_dimensions": [
+        671,
+        832
+      ],
+      "alt": "Andrés Aburto con su número de participante en un evento deportivo",
+      "silhouette": "Individual CSS clip-path"
+    },
+    {
+      "path": "assets/photos/andres-posing.png",
+      "source": "User supplied",
+      "original_dimensions": [
+        433,
+        733
+      ],
+      "alt": "Andrés Aburto practicando una pose de perfil",
+      "silhouette": "Individual CSS clip-path"
+    }
+  ],
+  "logo": "assets/logo/aburto-original.png"
 }

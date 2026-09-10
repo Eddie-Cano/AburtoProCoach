@@ -1,11 +1,19 @@
-# Andrés Aburto — edición de profundidad
+# Andrés Aburto — fotografía y profundidad
 
-Abrir index.html. Fotos y logo integrados en el HTML; las fuentes requieren internet y tienen alternativas locales.
+Sitio estático: abrir `index.html` junto con la carpeta `assets`. No requiere compilación.
 
-Tres escenas con sujeto recortado mediante CSS, fondo separado, parallax de scroll e inclinación con puntero. YouTube con icono SVG integrado. Adaptación móvil y movimiento reducido.
+## Distribución
+- Portada: fotografía de tarima.
+- Presentación de Andrés: retrato con pañuelo.
+- Contenido de Instagram: entrenamiento en gimnasio.
+- Comunidad: fotografía de evento con número de participante.
+- Universo Aburto: pestañas Entrenamiento (posing), Competencia (tarima) y Trayectoria (evento).
 
-La foto de origen es de 150 × 150 px; sustituir por originales de alta resolución y recortes transparentes para publicación definitiva. El recorte CSS actual es aproximado.
+Las cinco fotos son las proporcionadas por el propietario del proyecto. Las imágenes originales se conservan; la silueta se separa mediante máscaras CSS individuales, con fondo desenfocado, sombras, parallax y perspectiva. El recorte es una aproximación visual; no se han generado ni retocado rasgos físicos.
 
-El formulario prepara texto para copiar en Instagram; no guarda ni envía solicitudes a un backend.
+Las pestañas admiten ratón, toque, flechas izquierda/derecha, Inicio y Fin. Movimiento limitado en móvil y desactivado con `prefers-reduced-motion`.
 
-Siguiente fase: validar con Andrés fotos, biografía, servicios y enlaces; definir canal de captación y seguimiento; conectar formulario; elegir dominio y hosting; verificar recepción de consultas y publicar.
+## Próxima fase pendiente de definir
+Ampliar las pestañas y secciones según los servicios, programas y materiales que se acuerden con Andrés. Mantener estas notas de implementación fuera de la página pública. Validar biografía, credenciales, servicios y canales de contacto antes del lanzamiento.
+
+El formulario actual solo prepara un mensaje para Instagram: no registra solicitudes ni las envía a un servidor.
