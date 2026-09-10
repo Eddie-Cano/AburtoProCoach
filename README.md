@@ -9,7 +9,7 @@ Sitio estático: abrir `index.html` junto con la carpeta `assets`. No requiere c
 - Comunidad: fotografía de evento con número de participante.
 - Universo Aburto: pestañas Entrenamiento (posing), Competencia (tarima) y Trayectoria (evento).
 
-Las cinco fotos son las proporcionadas por el propietario del proyecto. Las imágenes originales se conservan; la silueta se separa mediante máscaras CSS individuales, con fondo desenfocado, sombras, parallax y perspectiva. El recorte es una aproximación visual; no se han generado ni retocado rasgos físicos.
+Las cinco fotos son las proporcionadas por el propietario del proyecto. Se muestran completas con `object-fit: contain`, sin máscaras, recortes de silueta ni fondo duplicado. El movimiento suave de desplazamiento e inclinación se aplica a toda la fotografía.
 
 Las pestañas admiten ratón, toque, flechas izquierda/derecha, Inicio y Fin. Movimiento limitado en móvil y desactivado con `prefers-reduced-motion`.
 
