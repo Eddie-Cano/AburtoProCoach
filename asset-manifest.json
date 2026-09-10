@@ -1,5 +1,5 @@
 {
-  "version": 3,
+  "version": 4,
   "photos": [
     {
       "path": "assets/photos/andres-tarima.png",
@@ -9,7 +9,7 @@
         832
       ],
       "alt": "Andrés Aburto en una pose de doble bíceps sobre la tarima",
-      "silhouette": "Individual CSS clip-path"
+      "display": "Full original image; object-fit: contain; whole-photo motion"
     },
     {
       "path": "assets/photos/andres-entrenamiento.png",
@@ -19,7 +19,7 @@
         785
       ],
       "alt": "Andrés Aburto entrenando en el gimnasio",
-      "silhouette": "Individual CSS clip-path"
+      "display": "Full original image; object-fit: contain; whole-photo motion"
     },
     {
       "path": "assets/photos/andres-retrato.png",
@@ -29,7 +29,7 @@
         837
       ],
       "alt": "Retrato de Andrés Aburto con pañuelo en el gimnasio",
-      "silhouette": "Individual CSS clip-path"
+      "display": "Full original image; object-fit: contain; whole-photo motion"
     },
     {
       "path": "assets/photos/andres-trayectoria.png",
@@ -39,7 +39,7 @@
         832
       ],
       "alt": "Andrés Aburto con su número de participante en un evento deportivo",
-      "silhouette": "Individual CSS clip-path"
+      "display": "Full original image; object-fit: contain; whole-photo motion"
     },
     {
       "path": "assets/photos/andres-posing.png",
@@ -49,7 +49,7 @@
         733
       ],
       "alt": "Andrés Aburto practicando una pose de perfil",
-      "silhouette": "Individual CSS clip-path"
+      "display": "Full original image; object-fit: contain; whole-photo motion"
     }
   ],
   "logo": "assets/logo/aburto-original.png"
