@@ -1,0 +1,110 @@
+/* Hero video integration. Kept separate so the original page structure remains intact. */
+.hero-video-frame {
+  overflow: hidden;
+}
+
+.hero-video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center center;
+  background: #090909;
+  filter: contrast(1.06) brightness(.86) saturate(1.04);
+}
+
+@media (min-width: 761px) {
+  .hero-video-frame {
+    /* Preserve the exact desktop media area while cropping the vertical edit into it. */
+    padding: 12px;
+  }
+
+  .hero-video {
+    object-position: center 44%;
+  }
+}
+
+@media (max-width: 760px) {
+  .hero {
+    display: flex;
+    align-items: stretch;
+    min-height: calc(100svh - 112px);
+  }
+
+  .hero::before {
+    background:
+      linear-gradient(180deg, rgba(9, 9, 9, .16) 0%, rgba(9, 9, 9, .08) 34%, rgba(9, 9, 9, .66) 68%, #090909 100%),
+      linear-gradient(90deg, rgba(9, 9, 9, .34), transparent 72%);
+  }
+
+  .hero-video-frame {
+    position: absolute;
+    inset: 0;
+    height: 100%;
+    transform: none !important;
+  }
+
+  .hero-video-frame::after {
+    background: linear-gradient(0deg, #090909 0%, transparent 38%);
+  }
+
+  .hero-video {
+    object-position: center center;
+    filter: contrast(1.04) brightness(.82) saturate(1.05);
+  }
+
+  .hero-grid {
+    display: flex;
+    align-items: flex-end;
+    min-height: calc(100svh - 112px);
+    width: 100%;
+  }
+
+  .hero-copy {
+    width: 100%;
+    padding: clamp(170px, 34svh, 300px) 0 112px;
+  }
+
+  .hero h1 {
+    font-size: clamp(58px, 19vw, 74px);
+  }
+
+  .hero-copy > p {
+    color: #d2d2d5;
+    text-shadow: 0 2px 18px rgba(0, 0, 0, .72);
+  }
+
+  .hero-meta {
+    background: rgba(9, 9, 9, .72);
+  }
+}
+
+@media (max-width: 380px), (max-height: 720px) and (max-width: 760px) {
+  .hero-copy {
+    padding-top: 112px;
+    padding-bottom: 104px;
+  }
+
+  .hero h1 {
+    font-size: clamp(52px, 17vw, 64px);
+  }
+
+  .hero-copy > p {
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  .actions {
+    margin-top: 22px;
+  }
+
+  .actions .btn {
+    min-height: 46px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-video {
+    animation: none;
+  }
+}
