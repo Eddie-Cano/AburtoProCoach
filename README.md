@@ -37,4 +37,7 @@ Calculadora de macros y temporizador de posing en `#herramientas`. El registro s
 
 Los contactos están en claves `aburto:lead:<sha256 del correo normalizado>`, con nombre, correo, teléfono, fecha y versión del consentimiento. Las sesiones HttpOnly/Secure duran 180 días. Otro navegador permite recuperar el acceso gratuito con correo y teléfono coincidentes, sin mostrar datos personales; esto no autentica compras ni da acceso a expedientes. No hay listado público de prospectos. Revisar contactos desde la consola privada de Upstash. Para eliminar un registro borrar su clave y todas las sesiones que la referencien. No confundir este mecanismo con un sistema de identidad verificada.
 
+
+Durante la etapa de pruebas, los registros nuevos pueden enviar una copia operativa a `raiznoblemx@gmail.com` mediante Resend. Configurar `RESEND_API_KEY` en Vercel; opcionalmente `LEAD_NOTIFY_EMAIL` para cambiar el destinatario y `LEAD_FROM_EMAIL` para usar un remitente verificado. Si Resend no está configurado o falla, el registro en Redis continúa funcionando y no se pierden los datos. La notificación incluye únicamente nombre, correo, teléfono y fecha; nunca envía edad, peso, estatura ni resultados de macros.
+
 Revisar con Andrés los criterios orientativos de la calculadora. Cálculo educativo Mifflin–St Jeor, proteína 1.6 g/kg, grasas 30% y carbohidratos restantes; adultos sanos, sin protocolos de peak week. Referencias incluidas en la interfaz. El temporizador se pausa cuando se oculta la pestaña.
