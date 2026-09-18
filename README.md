@@ -1,19 +1,30 @@
-# Andrés Aburto — fotografía y profundidad
+# Andrés Aburto — primera capa funcional
 
-Sitio estático: abrir `index.html` junto con la carpeta `assets`. No requiere compilación.
+Sitio de presentación, orientación y validación de productos digitales.
 
-## Distribución
-- Portada: fotografía de tarima.
-- Presentación de Andrés: retrato con pañuelo.
-- Contenido de Instagram: entrenamiento en gimnasio.
-- Comunidad: fotografía de evento con número de participante.
-- Universo Aburto: pestañas Entrenamiento (posing), Competencia (tarima) y Trayectoria (evento).
+## Alcance público actual
 
-Las cinco fotos son las proporcionadas por el propietario del proyecto. Se muestran completas con `object-fit: contain`, sin máscaras, recortes de silueta ni fondo duplicado. El movimiento suave de desplazamiento e inclinación se aplica a toda la fotografía.
+- Presentación de Andrés, servicios, método y trayectoria.
+- Primera colección digital: guía de competencia, curso de posing y diario de progreso.
+- Lista prioritaria sin cobros ni descargas hasta validar contenido, precio y fecha.
+- Asistente conversacional con ruta guiada y respuesta generativa mediante Vercel AI Gateway.
+- Resumen de solicitud para continuar el contacto por Instagram.
 
-Las pestañas admiten ratón, toque, flechas izquierda/derecha, Inicio y Fin. Movimiento limitado en móvil y desactivado con `prefers-reduced-motion`.
+La comunidad, la tienda, el merch y el carrito fueron retirados de la experiencia pública hasta una fase posterior.
 
-## Próxima fase pendiente de definir
-Ampliar las pestañas y secciones según los servicios, programas y materiales que se acuerden con Andrés. Mantener estas notas de implementación fuera de la página pública. Validar biografía, credenciales, servicios y canales de contacto antes del lanzamiento.
+## Desarrollo
 
-El formulario actual solo prepara un mensaje para Instagram: no registra solicitudes ni las envía a un servidor.
+```bash
+npm install
+npx vercel dev
+```
+
+El endpoint `api/chat.js` usa AI SDK y AI Gateway. En producción requiere AI Gateway habilitado para el proyecto de Vercel. Si el servicio generativo no está disponible, la ruta guiada y las respuestas locales continúan funcionando.
+
+## Pendientes de validación con Andrés
+
+- Biografía, credenciales y campeonatos publicados.
+- Modalidades, ubicación, disponibilidad y precios.
+- Contenido y fecha de lanzamiento de los tres productos.
+- Canal definitivo de recepción y almacenamiento de leads.
+- Dominio oficial.
