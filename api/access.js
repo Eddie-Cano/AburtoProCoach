@@ -2,6 +2,36 @@ import { randomBytes, createHash, timingSafeEqual } from 'node:crypto';
 
 const hash = text => createHash('sha256').update(text).digest('hex');
 const emailKey = email => `aburto:lead:${hash(email)}`;
+const notificationEmail = process.env.LEAD_NOTIFY_EMAIL || 'raiznoblemx@gmail.com';
+
+async function notifyNewLead({ name, email, phone, createdAt }) {
+  if (!process.env.RESEND_API_KEY) return false;
+  const response = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      from: process.env.LEAD_FROM_EMAIL || 'Aburto Pro Coach <onboarding@resend.dev>',
+      to: [notificationEmail],
+      subject: 'Nuevo registro de prueba — Aburto Pro Coach',
+      text: [
+        'Nuevo registro de prueba en las herramientas de Aburto Pro Coach.',
+        '',
+        `Nombre: ${name}`,
+        `Correo: ${email}`,
+        `Teléfono: ${phone}`,
+        `Fecha: ${createdAt}`,
+        '',
+        'No se incluyen peso, estatura, edad, macros ni otros datos corporales.',
+      ].join('\n'),
+    }),
+    signal: AbortSignal.timeout(8000),
+  });
+  if (!response.ok) throw new Error('notification unavailable');
+  return true;
+}
 async function redis(...command) {
   const response = await fetch(process.env.UPSTASH_REDIS_REST_URL, {
     method: 'POST', headers: { Authorization: `Bearer ${process.env.UPSTASH_REDIS_REST_TOKEN}`, 'Content-Type': 'application/json' },
@@ -37,8 +67,12 @@ export default async function handler(req, res) {
     const key = emailKey(email);
     let record = await redis('GET', key);
     if (!record && !returning) {
-      await redis('SET', key, JSON.stringify({ name, email, phoneHash: hash(phone), phone, createdAt: new Date().toISOString(), consentVersion: 'tools-v1', marketing: false }), 'NX');
+      const createdAt = new Date().toISOString();
+      const created = await redis('SET', key, JSON.stringify({ name, email, phoneHash: hash(phone), phone, createdAt, consentVersion: 'tools-v1', marketing: false }), 'NX');
       record = await redis('GET', key);
+      if (created) {
+        try { await notifyNewLead({ name, email, phone, createdAt }); } catch { /* El registro sigue siendo válido aunque falle la notificación. */ }
+      }
     }
     const lead = record ? (typeof record === 'string' ? JSON.parse(record) : record) : null;
     if (!lead || !timingSafeEqual(Buffer.from(lead.phoneHash, 'hex'), Buffer.from(hash(phone), 'hex'))) return res.status(400).json({ error: 'No pudimos habilitar el acceso. Revisa los datos de tu registro o usa otro correo.' });
