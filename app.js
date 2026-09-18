@@ -40,4 +40,40 @@ $$('[data-img]').forEach(button=>button.addEventListener('click',()=>{$$('[data-
 const observer=new IntersectionObserver(entries=>entries.forEach(entry=>{if(entry.isIntersecting){entry.target.classList.add('visible');observer.unobserve(entry.target)}}),{threshold:.12});$$('.reveal').forEach(node=>observer.observe(node));
 window.addEventListener('scroll',()=>{const max=document.documentElement.scrollHeight-innerHeight;$('#scrollProgress').style.width=`${max>0?(scrollY/max)*100:0}%`;if(!matchMedia('(prefers-reduced-motion: reduce)').matches&&innerWidth>760){$$('[data-depth]').forEach(node=>{const rect=node.getBoundingClientRect(),offset=(rect.top-innerHeight/2)*Number(node.dataset.depth||0);node.style.transform=`translate3d(0,${offset}px,0)`})}},{passive:true});
 function showToast(text){const toast=$('#toast');toast.textContent=text;toast.classList.add('show');setTimeout(()=>toast.classList.remove('show'),2200)}
+function initMobileExperience(){
+  const toggle=$('#menuToggle'),menu=$('#mobileMenu');
+  if(toggle&&menu){
+    const closeMenu=()=>{toggle.setAttribute('aria-expanded','false');toggle.setAttribute('aria-label','Abrir menú');document.body.classList.remove('menu-open')};
+    toggle.addEventListener('click',()=>{
+      const open=toggle.getAttribute('aria-expanded')!=='true';
+      toggle.setAttribute('aria-expanded',String(open));
+      toggle.setAttribute('aria-label',open?'Cerrar menú':'Abrir menú');
+      document.body.classList.toggle('menu-open',open);
+    });
+    $('a',menu).forEach(link=>link.addEventListener('click',closeMenu));
+    document.addEventListener('keydown',event=>{if(event.key==='Escape')closeMenu()});
+    matchMedia('(min-width: 1051px)').addEventListener?.('change',event=>{if(event.matches)closeMenu()});
+  }
+
+  const video=$('#heroVideo'),playButton=$('#heroVideoPlay');
+  if(video&&playButton){
+    const showPlay=()=>document.body.classList.add('video-needs-play');
+    const hidePlay=()=>document.body.classList.remove('video-needs-play');
+    const tryPlay=()=>{
+      video.muted=true;
+      video.defaultMuted=true;
+      video.setAttribute('muted','');
+      const attempt=video.play();
+      if(attempt&&typeof attempt.then==='function')attempt.then(hidePlay).catch(showPlay);
+    };
+    video.addEventListener('playing',hidePlay);
+    video.addEventListener('canplay',tryPlay,{once:true});
+    video.addEventListener('error',showPlay);
+    playButton.addEventListener('click',tryPlay);
+    document.addEventListener('visibilitychange',()=>{if(!document.hidden&&video.paused)tryPlay()});
+    tryPlay();
+  }
+}
+
+initMobileExperience();
 resetChat();
