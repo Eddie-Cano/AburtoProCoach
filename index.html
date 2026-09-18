@@ -10,6 +10,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;700;800;900&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="hero-video.css">
 </head>
 <body>
   <a class="skip" href="#contenido">Saltar al contenido</a>
@@ -24,7 +25,11 @@
   <nav class="sub" aria-label="Accesos rápidos"><div class="wrap"><a href="#inicio">ABURTO / PRO COACH</a><a href="#productos">Primera colección digital</a><a href="#asistente">Encuentra tu siguiente paso</a></div></nav>
   <main id="contenido">
     <section class="hero" id="inicio">
-      <div class="hero-media" data-depth="0.06"><img src="assets/photos/andres-tarima.png" alt="Andrés Aburto durante una competencia"></div>
+      <div class="hero-media hero-video-frame" data-depth="0.06" aria-hidden="true">
+        <video class="hero-video" autoplay muted loop playsinline preload="auto" poster="assets/photos/andres-tarima.png">
+          <source src="assets/video/0918.mp4" type="video/mp4">
+        </video>
+      </div>
       <div class="wrap hero-grid"><div class="hero-copy reveal"><div class="ey">Andrés Aburto · Pro Coach</div><h1><span>CONSTRUYE</span><span>TU MEJOR</span><span class="red">VERSIÓN.</span></h1><p>Entrenamiento, nutrición deportiva y preparación competitiva con dirección. Descubre el siguiente paso adecuado para tu experiencia y tu objetivo.</p><div class="actions"><a class="btn" href="#asistente">Cuéntame tu objetivo <span>↗</span></a><a class="btn alt" href="#andres">Conoce a Andrés <span>↓</span></a></div></div></div>
       <div class="hero-meta"><div class="wrap"><span>Entrenamiento</span><span>Nutrición</span><span>Posing</span><span>Competencia</span></div></div>
     </section>
