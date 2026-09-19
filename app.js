@@ -76,5 +76,25 @@ function initMobileExperience(){
   }
 }
 
+function initReviewCarousel(){
+  const track=$('#reviewsTrack'),previous=$('#reviewPrev'),next=$('#reviewNext');
+  if(!track||!previous||!next)return;
+  const move=direction=>{
+    const distance=Math.max(track.clientWidth*.82,280);
+    const atStart=track.scrollLeft<4;
+    const atEnd=track.scrollLeft+track.clientWidth>=track.scrollWidth-4;
+    if(direction<0&&atStart)track.scrollTo({left:track.scrollWidth,behavior:'smooth'});
+    else if(direction>0&&atEnd)track.scrollTo({left:0,behavior:'smooth'});
+    else track.scrollBy({left:distance*direction,behavior:'smooth'});
+  };
+  previous.addEventListener('click',()=>move(-1));
+  next.addEventListener('click',()=>move(1));
+  track.addEventListener('keydown',event=>{
+    if(event.key==='ArrowLeft'){event.preventDefault();move(-1)}
+    if(event.key==='ArrowRight'){event.preventDefault();move(1)}
+  });
+}
+
 initMobileExperience();
+initReviewCarousel();
 resetChat();
