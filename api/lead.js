@@ -20,6 +20,26 @@ async function redis(...command) {
   return data.result;
 }
 
+async function sendEmail({ to, subject, text, idempotencyKey }) {
+  const response = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+      'Content-Type': 'application/json',
+      'Idempotency-Key': idempotencyKey,
+    },
+    body: JSON.stringify({
+      from: process.env.LEAD_FROM_EMAIL || 'Aburto Pro Coach <onboarding@resend.dev>',
+      to: [to],
+      subject,
+      text,
+    }),
+    signal: AbortSignal.timeout(8000),
+  });
+  if (!response.ok) throw new Error('notification unavailable');
+  return true;
+}
+
 function recommendation(profile) {
   const target = `${profile.interest} ${profile.experience} ${profile.modality}`.toLowerCase();
   if (target.includes('posing')) return 'Posing intensivo';
@@ -31,19 +51,8 @@ function recommendation(profile) {
 }
 
 async function notifyLead(profile, createdAt, requestId) {
-  if (!process.env.RESEND_API_KEY) return false;
-  const response = await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
-      'Content-Type': 'application/json',
-      'Idempotency-Key': `aburto-lead-${requestId}`,
-    },
-    body: JSON.stringify({
-      from: process.env.LEAD_FROM_EMAIL || 'Aburto Pro Coach <onboarding@resend.dev>',
-      to: [notificationEmail],
-      subject: 'Nueva solicitud — Asistente Aburto',
-      text: [
+  if (!process.env.RESEND_API_KEY) return { ownerSent: false, userSent: false };
+  const ownerText = [
         'Nueva solicitud desde el asistente de Aburto Pro Coach.',
         '',
         `Nombre: ${profile.name}`,
@@ -57,12 +66,36 @@ async function notifyLead(profile, createdAt, requestId) {
         `Fecha: ${createdAt}`,
         '',
         'No se incluyen datos médicos ni información corporal de la calculadora.',
+      ].join('\n');
+  const email = profile.contact.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i)?.[0]?.toLowerCase();
+  const deliveries = [sendEmail({
+    to: notificationEmail,
+    subject: profile.interest.toLowerCase().includes('temporizador') ? 'Nuevo registro — Posing Lab' : 'Nueva solicitud — Asistente Aburto',
+    text: ownerText,
+    idempotencyKey: `aburto-lead-owner-${requestId}`,
+  })];
+  if (email) {
+    deliveries.push(sendEmail({
+      to: email,
+      subject: profile.interest.toLowerCase().includes('temporizador') ? 'Tu acceso al Posing Lab — Aburto Pro Coach' : 'Recibimos tu solicitud — Aburto Pro Coach',
+      text: [
+        `Hola ${profile.name},`,
+        '',
+        profile.interest.toLowerCase().includes('temporizador')
+          ? 'Tu acceso gratuito al Posing Lab quedó activado.'
+          : 'Recibimos tu solicitud y Andrés podrá darle seguimiento.',
+        '',
+        `Interés: ${profile.interest || 'Por definir'}`,
+        `Ruta sugerida: ${recommendation(profile)}`,
+        '',
+        'Por privacidad, esta copia no contiene datos médicos, medidas corporales ni resultados de la calculadora.',
+        'Si tú no enviaste esta solicitud, puedes ignorar este mensaje.',
       ].join('\n'),
-    }),
-    signal: AbortSignal.timeout(8000),
-  });
-  if (!response.ok) throw new Error('notification unavailable');
-  return true;
+      idempotencyKey: `aburto-lead-user-${requestId}`,
+    }));
+  }
+  const results = await Promise.allSettled(deliveries);
+  return { ownerSent: results[0]?.status === 'fulfilled', userSent: email ? results[1]?.status === 'fulfilled' : false };
 }
 
 export default async function handler(req, res) {
@@ -115,7 +148,7 @@ export default async function handler(req, res) {
           ...profile,
           recommendation: recommendation(profile),
           createdAt,
-          source: 'assistant',
+          source: profile.interest.toLowerCase().includes('temporizador') ? 'posing-lab' : 'assistant',
           routing: { email: notificationEmail, whatsapp: whatsappNumber },
         }), 'EX', 2592000);
         saved = true;
@@ -123,10 +156,18 @@ export default async function handler(req, res) {
     }
 
     let notified = false;
-    try { notified = await notifyLead(profile, createdAt, id); } catch { notified = false; }
+    let userCopySent = false;
+    try {
+      const delivery = await notifyLead(profile, createdAt, id);
+      notified = delivery.ownerSent;
+      userCopySent = delivery.userSent;
+    } catch {
+      notified = false;
+      userCopySent = false;
+    }
 
     if (!saved && !notified) return res.status(503).json({ error: 'No se pudo guardar ni enviar la solicitud.' });
-    return res.status(200).json({ saved, notified, whatsappNumber });
+    return res.status(200).json({ saved, notified, userCopySent, whatsappNumber });
   } catch {
     return res.status(503).json({ error: 'No se pudo procesar la solicitud.' });
   }

@@ -23,6 +23,48 @@
 .estimate-caution{padding-top:13px;border-top:1px solid #38383e;color:#bdbdc2!important}
 @media(max-width:760px){.estimate-banner{display:grid;gap:5px}.formula-comparison{grid-template-columns:1fr}.factor-box output{font-size:34px}}
 
+/* Aburto Posing Lab */
+.pose-intro{display:grid;grid-template-columns:1.2fr .8fr;align-items:end;gap:40px;padding-bottom:28px;border-bottom:1px solid #34343a}
+.pose-intro h3{margin-top:10px;font-size:clamp(42px,5vw,72px)}
+.pose-intro p{max-width:520px;margin:0}
+.pose-lead-card{display:grid;grid-template-columns:.72fr 1.28fr;gap:38px;margin-top:28px;padding:28px;border:1px solid #4a2026;background:radial-gradient(circle at 0 0,#45161c 0,transparent 42%),#0b0b0d}
+.pose-lead-card h4,.pose-coaching h4{margin:8px 0 12px;font:800 34px/1 var(--display);text-transform:uppercase}
+.pose-lead-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.pose-lead-form label,.pose-settings label{display:flex;flex-direction:column;gap:6px;color:#ddd;font-size:13px}
+.pose-lead-form input,.pose-settings select{width:100%;min-height:48px;padding:11px 12px;border:1px solid #4a4a50;background:#17171a;color:#fff;font:inherit}
+.pose-lead-form .pose-consent{grid-column:1/-1;display:block;color:#aaa;font-size:12px}
+.pose-consent input{width:18px;height:18px;min-height:auto;margin-right:8px;accent-color:var(--red);vertical-align:middle}
+.pose-lead-form .btn{width:100%}
+#poseLeadError{margin:0;color:#ffadb5;font-size:12px;align-self:center}
+.pose-settings{display:grid;grid-template-columns:1fr 1fr 1.3fr auto;align-items:end;gap:14px;margin:28px 0 18px}
+.pose-plan{display:flex;min-height:48px;flex-direction:column;justify-content:center;padding:7px 14px;border-left:3px solid var(--red);background:#17171a}
+.pose-plan strong{font:800 17px var(--display);text-transform:uppercase}
+.pose-plan span{color:#94949b;font-size:11px}
+.pose-player{display:grid;grid-template-columns:minmax(320px,.94fr) minmax(320px,1.06fr);min-height:590px;border:1px solid #37373c;background:#090909}
+.pose-visual-wrap{position:relative;min-height:590px;overflow:hidden;background:#050505}
+.pose-visual{width:100%;height:100%;min-height:590px;background-repeat:no-repeat;background-color:#050505}
+.pose-visual.classic-sprite,.pose-visual.bodybuilding-sprite{background-size:400% 200%}
+.pose-visual.classic-sprite{background-image:url('assets/posing/classic-sprite.png')}
+.pose-visual.bodybuilding-sprite{background-image:url('assets/posing/bodybuilding-sprite.png')}
+.pose-visual.pose-photo{background-size:contain;background-position:center!important}
+.pose-visual.mirror{transform:scaleX(-1)}
+.pose-visual-wrap>span{position:absolute;left:18px;bottom:18px;padding:7px 10px;background:#090909dc;border-left:3px solid var(--red);font-size:10px;font-weight:800;letter-spacing:.12em}
+.pose-coaching{display:flex;flex-direction:column;justify-content:center;padding:clamp(28px,5vw,64px)}
+.pose-coaching h4{font-size:clamp(38px,5vw,70px);margin:12px 0 0}
+.pose-coaching output{display:block;margin:14px 0 0;color:var(--red);font:800 clamp(78px,10vw,132px)/.9 var(--display)}
+.pose-coaching>p{margin:7px 0 20px;font-size:12px;letter-spacing:.08em;text-transform:uppercase}
+.pose-coaching ul{display:grid;gap:0;margin:0 0 26px;padding:0;list-style:none}
+.pose-coaching li{position:relative;padding:11px 10px 11px 24px;border-bottom:1px solid #303034;color:#dedee1}
+.pose-coaching li:before{content:'+';position:absolute;left:3px;color:var(--red);font-weight:900}
+.pose-controls{display:flex;gap:8px;flex-wrap:wrap}
+.pose-controls .btn{flex:1 1 120px}
+#timerNotice{min-height:1.5em;margin:14px 0 0;color:#a7a7ae;font-size:12px;text-transform:none;letter-spacing:0}
+.pose-disclaimer{display:flex;gap:18px;margin-top:16px;padding:16px 18px;border-left:3px solid var(--red);background:#171719}
+.pose-disclaimer strong{flex:0 0 auto;color:#fff;font-size:11px;text-transform:uppercase;letter-spacing:.08em}
+.pose-disclaimer span{color:#a5a5aa;font-size:12px}
+@media(max-width:1000px){.pose-settings{grid-template-columns:1fr 1fr}.pose-plan{grid-column:1/-1}.pose-player{grid-template-columns:1fr}.pose-visual-wrap,.pose-visual{min-height:540px}.pose-lead-card{grid-template-columns:1fr}}
+@media(max-width:760px){.pose-intro,.pose-lead-card,.pose-settings{grid-template-columns:1fr}.pose-intro{align-items:start;gap:16px}.pose-lead-card{padding:20px}.pose-lead-form{grid-template-columns:1fr}.pose-lead-form .pose-consent{grid-column:auto}.pose-player{display:block;min-height:0}.pose-visual-wrap,.pose-visual{min-height:470px}.pose-coaching{padding:28px 20px}.pose-coaching h4{font-size:43px}.pose-coaching output{font-size:90px}.pose-disclaimer{display:grid;gap:5px}.pose-settings .btn{width:100%}}
+
 /* Reseñas verificadas */
 .reviews-section{overflow:hidden;background:radial-gradient(circle at 88% 18%,#42151b 0,transparent 32%),#0b0b0d}
 .reviews-head{display:flex;align-items:flex-end;justify-content:space-between;gap:40px;margin-bottom:46px}

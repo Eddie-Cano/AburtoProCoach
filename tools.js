@@ -31,7 +31,42 @@ root.innerHTML = `
 <div class="estimate-banner"><strong>SIEMPRE ES UNA ESTIMACIÓN.</strong><span>El resultado aproxima calorías por día; no mide tu metabolismo ni sustituye calorimetría indirecta o valoración profesional.</span></div>
 <div id="macroResult" class="tool-result" role="status" hidden></div>
 <details><summary>Fórmulas, factor y referencias</summary><p><b>Mifflin–St Jeor:</b> usa peso, estatura, edad y sexo. <b>Harris–Benedict revisada:</b> versión Roza–Shizgal de 1984. <b>Tinsley:</b> usa 24.8 × peso + 10; si proporcionas grasa corporal, usa 25.9 × masa libre de grasa + 284. Tinsley se desarrolló con atletas de físico musculados y no debe generalizarse sin cautela.</p><p>El factor total multiplica el gasto en reposo para aproximar el gasto diario. Los valores altos, especialmente 2.40–2.60, representan cargas excepcionales y deben validarse con seguimiento real.</p><p><a href="https://pubmed.ncbi.nlm.nih.gov/2305711/" target="_blank" rel="noopener">Mifflin–St Jeor ↗</a> · <a href="https://pubmed.ncbi.nlm.nih.gov/30240568/" target="_blank" rel="noopener">Tinsley ↗</a> · <a href="https://pubmed.ncbi.nlm.nih.gov/6741850/" target="_blank" rel="noopener">Harris–Benedict revisada ↗</a></p></details></div>
-<div class="tool-panel" id="panel-timer" hidden><h3>PRACTICA CON INTENCIÓN.</h3><p>Configura tus intervalos de práctica y descanso. Elige tiempos cómodos y mantén una respiración normal.</p><form id="timerForm" class="tool-form"><label>Práctica (segundos)<input name="work" type="number" min="5" max="300" value="30" required></label><label>Descanso (segundos)<input name="rest" type="number" min="5" max="300" value="30" required></label><label>Rondas<input name="rounds" type="number" min="1" max="30" value="5" required></label><button class="btn">Comenzar práctica</button></form><div class="timer-face"><span id="timerPhase">LISTO PARA COMENZAR</span><output id="timerClock" aria-label="Tiempo restante">00:30</output><span id="timerRound">Personaliza tus intervalos</span></div><div class="tool-nav"><button id="pauseTimer" class="btn alt" disabled>Pausar</button><button id="resetTimer" class="btn alt" disabled>Reiniciar</button></div><p id="timerNotice" role="status"></p></div>
+<div class="tool-panel" id="panel-timer" hidden>
+  <div class="pose-intro"><div><span class="result-eyebrow">ABURTO POSING LAB</span><h3>ENTRENA LA POSE,<br>NO SÓLO EL TIEMPO.</h3></div><p>Elige categoría y rutina. La silueta, las claves técnicas y la transición cambian automáticamente durante la práctica.</p></div>
+  <section class="pose-lead-card" id="poseLeadCard" aria-labelledby="poseLeadTitle">
+    <div><span class="result-eyebrow">ACCESO GRATUITO</span><h4 id="poseLeadTitle">Activa tu rutina</h4><p>Nombre y al menos un medio de contacto. Si agregas correo, recibirás una copia de confirmación.</p></div>
+    <form id="poseLeadForm" class="pose-lead-form">
+      <label>Nombre<input name="name" autocomplete="name" minlength="2" maxlength="100" required></label>
+      <label>Correo — opcional<input name="email" type="email" autocomplete="email" maxlength="254" placeholder="tu@correo.com"></label>
+      <label>WhatsApp — opcional<input name="phone" type="tel" autocomplete="tel" maxlength="24" placeholder="+52 228 123 4567"></label>
+      <label class="pose-consent"><input name="consent" type="checkbox" required> Autorizo el uso de estos datos para habilitar la herramienta y dar seguimiento a mi solicitud.</label>
+      <button class="btn" id="poseLeadSubmit">Entrar al Posing Lab</button>
+      <p id="poseLeadError" role="alert"></p>
+    </form>
+  </section>
+  <div id="poseWorkspace" hidden>
+    <form id="timerForm" class="pose-settings">
+      <label>Categoría<select name="category" id="poseCategory"><option value="classic">Classic Physique · 7 poses</option><option value="bodybuilding">Bodybuilding · 8 poses</option><option value="foundation">Presentación base · 4 posiciones</option></select></label>
+      <label>Rutina<select name="routine" id="poseRoutine"><option value="express">Express · 1 vuelta</option><option value="technique" selected>Técnica · 2 vueltas</option><option value="stage">Tarima · 3 vueltas</option></select></label>
+      <div class="pose-plan" id="posePlan" aria-live="polite"></div>
+      <button class="btn" id="startPoseTimer">Comenzar rutina</button>
+    </form>
+    <div class="pose-player">
+      <div class="pose-visual-wrap"><div id="poseVisual" class="pose-visual" role="img" aria-label="Silueta de la pose actual"></div><span id="poseCounter">POSE 1 / 7</span></div>
+      <div class="pose-coaching">
+        <span class="result-eyebrow" id="timerPhase">LISTO PARA COMENZAR</span>
+        <h4 id="poseName">Doble bíceps de frente</h4>
+        <output id="timerClock" aria-label="Tiempo restante">00:25</output>
+        <p id="timerRound">Rutina Técnica · 2 vueltas</p>
+        <ul id="poseCues"></ul>
+        <div class="pose-controls"><button type="button" id="pauseTimer" class="btn alt" disabled>Pausar</button><button type="button" id="skipPose" class="btn alt" disabled>Siguiente</button><button type="button" id="resetTimer" class="btn alt" disabled>Reiniciar</button></div>
+        <p id="timerNotice" role="status"></p>
+      </div>
+    </div>
+    <div class="pose-disclaimer"><strong>Guía de práctica, no criterio universal.</strong><span>Las poses y llamados cambian entre federaciones, categorías y eventos. Andrés puede ajustar la ejecución a tu estructura, reglamento y nivel. Detén la práctica si sientes dolor o mareo.</span></div>
+    <details><summary>Base de la rutina y reglamentos</summary><p>Classic Physique sigue las siete poses obligatorias IFBB; Bodybuilding reúne las siete obligatorias IFBB y añade “most muscular” como práctica común en NPC; Presentación base trabaja frente, lateral y espalda con las referencias de Aburto Team.</p><p><a href="https://ifbb.com/wp-content/uploads/2024/02/Mens-Classic-Physique-2024.pdf" target="_blank" rel="noopener">Reglamento IFBB Classic Physique ↗</a> · <a href="https://ifbb.com/wp-content/uploads/2025/07/Mens-Bodybuilding-Rules-2026-1.pdf" target="_blank" rel="noopener">Reglamento IFBB Bodybuilding ↗</a></p></details>
+  </div>
+</div>
 <dialog id="accessDialog" aria-labelledby="accessTitle"><button type="button" id="closeAccess" class="restart" aria-label="Cerrar registro">×</button><h3 id="accessTitle">UN REGISTRO.<br>DOS HERRAMIENTAS.</h3><p>Registro temporalmente desactivado durante la revisión de resultados.</p><form id="accessForm" class="tool-form"><label class="tool-wide" id="nameLabel">Nombre<input name="name" autocomplete="name" minlength="2" maxlength="100" required></label><label class="tool-wide">Correo<input name="email" type="email" autocomplete="email" maxlength="254" required></label><label class="tool-wide">Teléfono con código de país<input name="phone" type="tel" autocomplete="tel" placeholder="+52 228 123 4567" maxlength="24" required></label><label class="tool-wide" id="consentLabel"><input name="consent" type="checkbox" required> Autorizo guardar estos datos para habilitar y recuperar mi acceso.</label><p class="tool-wide">Los datos se guardan en la base privada de Aburto Pro Coach. Enviaremos una copia operativa a Raíz Noble y una confirmación al correo que registres. Ninguno de los correos incluye edad, peso, estatura ni resultados de macros; tampoco autoriza publicidad. Puedes solicitar eliminación por <a href="https://www.instagram.com/andrsaburto/" target="_blank" rel="noopener">Instagram @andrsaburto</a>.</p><button class="btn tool-wide" id="saveAccess">Registrarme y continuar</button><button type="button" class="text-link tool-wide" id="returningAccess">Ya me registré</button><p id="accessError" class="tool-wide" role="alert"></p></form></dialog>`;
 
 let registered = false, ready = false, pending = null, returning = false;
@@ -144,16 +179,55 @@ document.querySelector('#macroForm').onsubmit=e=>{
     out.append(macros,note);cta(out,'Nutrición deportiva');
   });
 };
-let timer=null, segments=[], index=0, deadline=0, remaining=0, paused=false;
-const clock=document.querySelector('#timerClock'), phase=document.querySelector('#timerPhase'), round=document.querySelector('#timerRound'), pause=document.querySelector('#pauseTimer'), reset=document.querySelector('#resetTimer');
-function draw() { const sec=Math.max(0,Math.ceil(remaining/1000)); clock.textContent=`${String(Math.floor(sec/60)).padStart(2,'0')}:${String(sec%60).padStart(2,'0')}`; }
-function tick() { remaining=deadline-Date.now(); while(remaining<=0 && index<segments.length-1) { index++; deadline+=segments[index].seconds*1000; remaining=deadline-Date.now(); }
-  if(remaining<=0) { clearInterval(timer); timer=null; remaining=0; phase.textContent='PRÁCTICA COMPLETADA'; round.textContent='Buen trabajo. Revisa tu técnica y tus sensaciones.'; pause.disabled=true; document.querySelector('#timerForm button').disabled=false; }
-  else { phase.textContent=segments[index].label; round.textContent=`Ronda ${segments[index].round} de ${segments.at(-1).round}`; } draw(); }
-document.querySelector('#timerForm').onsubmit=e=>{ e.preventDefault(); const f=new FormData(e.currentTarget), work=+f.get('work'), rest=+f.get('rest'), rounds=+f.get('rounds'); gate(()=>{
-  clearInterval(timer); segments=[]; for(let r=1;r<=rounds;r++){ segments.push({label:'PRÁCTICA',round:r,seconds:work}); if(r<rounds) segments.push({label:'DESCANSO',round:r,seconds:rest}); }
-  index=0; paused=false; pause.textContent='Pausar'; pause.disabled=false; reset.disabled=false; document.querySelector('#timerForm button').disabled=true; remaining=work*1000; deadline=Date.now()+remaining; tick(); timer=setInterval(tick,200);
-}); };
-pause.onclick=()=>{ if(!paused){ remaining=Math.max(0,deadline-Date.now()); clearInterval(timer); timer=null; paused=true; pause.textContent='Continuar'; }else{ deadline=Date.now()+remaining; paused=false; pause.textContent='Pausar'; timer=setInterval(tick,200); tick(); } };
-reset.onclick=()=>{ clearInterval(timer); timer=null; paused=false; remaining=Number(document.querySelector('[name="work"]').value)*1000; draw(); phase.textContent='LISTO PARA COMENZAR'; round.textContent='Personaliza tus intervalos'; pause.disabled=true; pause.textContent='Pausar'; reset.disabled=true; document.querySelector('#timerForm button').disabled=false; };
-document.addEventListener('visibilitychange',()=>{ if(document.hidden && timer && !paused){ pause.click(); document.querySelector('#timerNotice').textContent='Práctica pausada al salir de la página. Pulsa Continuar cuando estés listo.'; } });
+const poseLibraries={
+  classic:{name:'Classic Physique',poses:[
+    {name:'Doble bíceps de frente',pos:'0% 0%',cues:['Pierna adelantada 40–50 cm y abierta','Codos altos; puños cerrados hacia abajo','Expande dorsal y contrae piernas completas']},
+    {name:'Pecho de lado',pos:'33.333% 0%',cues:['Presenta tu mejor lado','Pecho alto y hombro posterior abierto','Aprieta bíceps, femoral y pantorrilla']},
+    {name:'Doble bíceps de espalda',pos:'66.667% 0%',cues:['Un pie atrás apoyado en la punta','Abre la espalda antes de cerrar brazos','Contrae glúteos, femorales y pantorrillas']},
+    {name:'Tríceps de lado',pos:'100% 0%',cues:['Une manos detrás y fija el brazo','Pecho arriba; abdomen firme','Pierna cercana plana y posterior en punta']},
+    {name:'Vacuum',pos:'0% 100%',cues:['Manos detrás de la cabeza','Exhala y lleva el ombligo hacia la columna','Mantén torso alto y piernas activas']},
+    {name:'Abdominales y muslo',pos:'33.333% 100%',cues:['Manos detrás de la cabeza','Adelanta una pierna y marca cuádriceps','Cierra costillas sin colapsar la postura']},
+    {name:'Pose clásica favorita',pos:'66.667% 100%',cues:['Elige tu línea más estética','Conecta pies, cadera, torso y mirada','Sostén sin perder respiración ni elegancia']}
+  ]},
+  bodybuilding:{name:'Bodybuilding',poses:[
+    {name:'Doble bíceps de frente',pos:'0% 0%',cues:['Pies firmes y cuádriceps activos','Codos altos y simétricos','Cintura controlada; dorsal abierto']},
+    {name:'Expansión dorsal de frente',pos:'33.333% 0%',cues:['Puños a la cintura','Lleva codos al frente y expande dorsales','Mantén pecho alto y piernas contraídas']},
+    {name:'Pecho de lado',pos:'66.667% 0%',cues:['Talón cercano elevado','Eleva caja torácica','Contrae pecho, brazo y pierna a la vez']},
+    {name:'Doble bíceps de espalda',pos:'100% 0%',cues:['Muestra pantorrilla con pie atrás','Abre dorsales y fija cintura','Contrae cadena posterior completa']},
+    {name:'Expansión dorsal de espalda',pos:'0% 100%',cues:['Puños a la cintura','Codos al frente para ganar amplitud','Glúteos y femorales siempre activos']},
+    {name:'Tríceps de lado',pos:'33.333% 100%',cues:['Bloquea la mano posterior','Empuja el brazo cercano contra el torso','Pecho alto; pierna y abdomen firmes']},
+    {name:'Abdominales y muslo',pos:'66.667% 100%',cues:['Adelanta y flexiona el cuádriceps','Exhala sin perder control','Marca abdomen sin cerrar hombros']},
+    {name:'Más musculoso',pos:'100% 100%',cues:['Acerca brazos sin ocultar el torso','Contrae pecho, hombros y trapecio','Piernas firmes; expresión bajo control']}
+  ]},
+  foundation:{name:'Presentación base',poses:[
+    {name:'Pose de frente',image:'assets/posing/front-pose.png',cues:['Hombros alineados y pecho elevado','Dorsal abierto con ligero giro de torso','Mano a la cintura y cadera proyectada']},
+    {name:'Lado izquierdo',image:'assets/posing/side-pose.png',cues:['Torso erguido y pecho abierto','Rota hacia jueces; presenta glúteo','Pierna posterior en punta']},
+    {name:'Pose de espalda',image:'assets/posing/back-pose.png',cues:['Torso erguido y ligera extensión lumbar','Cadera atrás y glúteo proyectado','Rodillas hacia afuera; pies estables']},
+    {name:'Lado derecho',image:'assets/posing/side-pose.png',mirror:true,cues:['Repite la línea del lado opuesto','Abre pecho y orienta el torso','Controla mano, glúteo y pie posterior']}
+  ]}
+};
+const routinePresets={express:{name:'Express',hold:15,transition:8,rounds:1},technique:{name:'Técnica',hold:25,transition:10,rounds:2},stage:{name:'Tarima',hold:30,transition:8,rounds:3}};
+let timer=null,segments=[],index=0,deadline=0,remaining=0,paused=false;
+const clock=document.querySelector('#timerClock'),phase=document.querySelector('#timerPhase'),round=document.querySelector('#timerRound'),pause=document.querySelector('#pauseTimer'),reset=document.querySelector('#resetTimer'),skip=document.querySelector('#skipPose'),poseVisual=document.querySelector('#poseVisual'),poseName=document.querySelector('#poseName'),poseCues=document.querySelector('#poseCues'),poseCounter=document.querySelector('#poseCounter'),categorySelect=document.querySelector('#poseCategory'),routineSelect=document.querySelector('#poseRoutine'),posePlan=document.querySelector('#posePlan'),startPose=document.querySelector('#startPoseTimer');
+function selectedPoseData(){return {library:poseLibraries[categorySelect.value],preset:routinePresets[routineSelect.value]};}
+function setPoseVisual(pose,library,position=0){
+  poseVisual.className='pose-visual';poseVisual.style.backgroundImage='';poseVisual.style.backgroundPosition='';
+  if(pose.image){poseVisual.classList.add('pose-photo');poseVisual.style.backgroundImage=`url('${pose.image}')`;if(pose.mirror)poseVisual.classList.add('mirror');}
+  else{poseVisual.classList.add(categorySelect.value==='classic'?'classic-sprite':'bodybuilding-sprite');poseVisual.style.backgroundPosition=pose.pos;}
+  poseVisual.setAttribute('aria-label',`Referencia visual: ${pose.name}`);poseName.textContent=pose.name;poseCues.replaceChildren(...pose.cues.map(cue=>{const li=document.createElement('li');li.textContent=cue;return li;}));poseCounter.textContent=`POSE ${position+1} / ${library.poses.length}`;
+}
+function secondsToLabel(total){const min=Math.floor(total/60),sec=total%60;return `${min}:${String(sec).padStart(2,'0')} min`;}
+function updatePosePlan(){const {library,preset}=selectedPoseData(),perRound=library.poses.length*preset.hold+(library.poses.length-1)*preset.transition,total=perRound*preset.rounds+(preset.rounds-1)*preset.transition;posePlan.innerHTML=`<strong>${library.name} · ${preset.name}</strong><span>${library.poses.length} poses · ${preset.hold}s por pose · ${preset.rounds} ${preset.rounds===1?'vuelta':'vueltas'} · ${secondsToLabel(total)}</span>`;setPoseVisual(library.poses[0],library,0);clock.textContent=`00:${String(preset.hold).padStart(2,'0')}`;round.textContent=`Rutina ${preset.name} · ${preset.rounds} ${preset.rounds===1?'vuelta':'vueltas'}`;}
+categorySelect.onchange=updatePosePlan;routineSelect.onchange=updatePosePlan;updatePosePlan();
+function unlockPoseLab(message='Acceso activo · Tu rutina está lista.') {document.querySelector('#poseLeadCard').hidden=true;document.querySelector('#poseWorkspace').hidden=false;document.querySelector('#timerNotice').textContent=message;updatePosePlan();}
+try{if(localStorage.getItem('aburto_pose_access')==='1')unlockPoseLab();}catch{}
+document.querySelector('#poseLeadForm').onsubmit=async e=>{e.preventDefault();const submit=document.querySelector('#poseLeadSubmit'),error=document.querySelector('#poseLeadError'),f=new FormData(e.currentTarget),email=String(f.get('email')||'').trim(),phone=String(f.get('phone')||'').trim();error.textContent='';if(!email&&!phone){error.textContent='Escribe un correo o un número de WhatsApp.';return;}submit.disabled=true;submit.textContent='Activando…';try{const response=await fetch('/api/lead',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:f.get('name'),contact:[email,phone].filter(Boolean).join(' · '),interest:'Temporizador de posing',experience:`Categoría inicial: ${categorySelect.value}`,modality:'Herramienta digital gratuita',timing:'Uso inmediato'})}),data=await response.json();if(!response.ok)throw new Error(data.error||'No pudimos activar la herramienta.');try{localStorage.setItem('aburto_pose_access','1');}catch{}unlockPoseLab(email?(data.userCopySent?'Acceso activo · Enviamos una copia a tu correo.':'Acceso activo · Tu rutina está lista; la copia por correo quedó pendiente.'):'Acceso activo · Tu rutina está lista.');}catch(err){error.textContent=err.message;}finally{submit.disabled=false;submit.textContent='Entrar al Posing Lab';}};
+function draw(){const sec=Math.max(0,Math.ceil(remaining/1000));clock.textContent=`${String(Math.floor(sec/60)).padStart(2,'0')}:${String(sec%60).padStart(2,'0')}`;}
+function renderSegment(){const segment=segments[index],{library}=selectedPoseData();setPoseVisual(segment.pose,library,segment.poseIndex);phase.textContent=segment.kind==='pose'?'SOSTÉN Y RESPIRA':`TRANSICIÓN → ${segment.pose.name.toUpperCase()}`;round.textContent=`Vuelta ${segment.round} de ${segments.at(-1).round} · ${segment.kind==='pose'?'Pose':'Prepara la siguiente pose'}`;}
+function finishPoseTimer(){clearInterval(timer);timer=null;remaining=0;draw();phase.textContent='RUTINA COMPLETADA';round.textContent='Revisa el video, anota una corrección y repite con intención.';pause.disabled=true;skip.disabled=true;startPose.disabled=false;categorySelect.disabled=false;routineSelect.disabled=false;document.querySelector('#timerNotice').textContent='Completaste la rutina. La calidad de cada transición cuenta tanto como la pose.';}
+function tick(){remaining=deadline-Date.now();while(remaining<=0&&index<segments.length-1){index++;deadline+=segments[index].seconds*1000;remaining=deadline-Date.now();renderSegment();}if(remaining<=0)finishPoseTimer();else draw();}
+document.querySelector('#timerForm').onsubmit=e=>{e.preventDefault();gate(()=>{const {library,preset}=selectedPoseData();clearInterval(timer);segments=[];for(let r=1;r<=preset.rounds;r++){library.poses.forEach((pose,i)=>{segments.push({kind:'pose',pose,poseIndex:i,round:r,seconds:preset.hold});if(i<library.poses.length-1)segments.push({kind:'transition',pose:library.poses[i+1],poseIndex:i+1,round:r,seconds:preset.transition});});if(r<preset.rounds)segments.push({kind:'transition',pose:library.poses[0],poseIndex:0,round:r+1,seconds:preset.transition});}index=0;paused=false;pause.textContent='Pausar';pause.disabled=false;skip.disabled=false;reset.disabled=false;startPose.disabled=true;categorySelect.disabled=true;routineSelect.disabled=true;remaining=segments[0].seconds*1000;deadline=Date.now()+remaining;renderSegment();draw();timer=setInterval(tick,200);document.querySelector('#timerNotice').textContent='';});};
+pause.onclick=()=>{if(!paused){remaining=Math.max(0,deadline-Date.now());clearInterval(timer);timer=null;paused=true;pause.textContent='Continuar';phase.textContent='PAUSA';}else{deadline=Date.now()+remaining;paused=false;pause.textContent='Pausar';renderSegment();timer=setInterval(tick,200);tick();}};
+skip.onclick=()=>{if(index>=segments.length-1){finishPoseTimer();return;}index++;remaining=segments[index].seconds*1000;deadline=Date.now()+remaining;renderSegment();draw();};
+reset.onclick=()=>{clearInterval(timer);timer=null;paused=false;const {library,preset}=selectedPoseData();remaining=preset.hold*1000;draw();phase.textContent='LISTO PARA COMENZAR';round.textContent=`Rutina ${preset.name} · ${preset.rounds} ${preset.rounds===1?'vuelta':'vueltas'}`;setPoseVisual(library.poses[0],library,0);pause.disabled=true;skip.disabled=true;pause.textContent='Pausar';reset.disabled=true;startPose.disabled=false;categorySelect.disabled=false;routineSelect.disabled=false;document.querySelector('#timerNotice').textContent='';};
+document.addEventListener('visibilitychange',()=>{if(document.hidden&&timer&&!paused){pause.click();document.querySelector('#timerNotice').textContent='Práctica pausada al salir de la página. Pulsa Continuar cuando estés listo.';}});
