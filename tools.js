@@ -74,7 +74,7 @@ const status = document.querySelector('#accessStatus'), dialog = document.queryS
 async function checkAccess() {
   registered = true;
   ready = true;
-  status.textContent = 'Acceso de prueba abierto · Calcula y usa las herramientas sin registro.';
+  status.textContent = 'Calculadora abierta · El Posing Lab solicita nombre y al menos un contacto.';
 }
 await checkAccess();
 function gate(action) {
