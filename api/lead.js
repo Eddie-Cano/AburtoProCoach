@@ -2,7 +2,7 @@ import { randomBytes, createHash } from 'node:crypto';
 
 const hash = text => createHash('sha256').update(text).digest('hex');
 const notificationEmail = 'raiznoblemx@gmail.com';
-const whatsappNumber = '5212282780491';
+const whatsappNumber = '522282780491';
 
 async function redis(...command) {
   const response = await fetch(process.env.UPSTASH_REDIS_REST_URL, {
@@ -53,7 +53,7 @@ async function notifyLead(profile, createdAt, requestId) {
         `Modalidad: ${profile.modality || 'Por definir'}`,
         `Momento para comenzar: ${profile.timing || 'Por definir'}`,
         `Ruta sugerida: ${recommendation(profile)}`,
-        `WhatsApp de seguimiento: +52 1 228 278 0491`,
+        `WhatsApp de seguimiento: +52 228 278 0491`,
         `Fecha: ${createdAt}`,
         '',
         'No se incluyen datos médicos ni información corporal de la calculadora.',

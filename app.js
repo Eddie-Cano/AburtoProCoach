@@ -1,6 +1,6 @@
 const $=(s,r=document)=>r.querySelector(s),$$=(s,r=document)=>[...r.querySelectorAll(s)];
 const productDescriptions={'5 claves antes de competir':'guía digital para organizar categoría, presentación, logística y decisiones previas a una competencia','Posing intensivo':'minicurso en video sobre postura, transiciones, presencia y práctica por categoría','Diario de progreso':'workbook de 12 semanas para registrar entrenamiento, recuperación, tendencias y check-ins'};
-const leadRouting={email:'raiznoblemx@gmail.com',whatsapp:'5212282780491',whatsappDisplay:'+52 1 228 278 0491'};
+const leadRouting={email:'raiznoblemx@gmail.com',whatsapp:'522282780491',whatsappDisplay:'+52 228 278 0491'};
 const emptyProfile=()=>({interest:'',experience:'',modality:'',timing:'',name:'',contact:''});
 const state={step:0,profile:emptyProfile(),history:[]};
 let lastCapturedLead='',lastCaptureResult=null;
