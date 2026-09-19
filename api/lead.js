@@ -1,7 +1,8 @@
 import { randomBytes, createHash } from 'node:crypto';
 
 const hash = text => createHash('sha256').update(text).digest('hex');
-const notificationEmail = process.env.LEAD_NOTIFY_EMAIL || 'raiznoblemx@gmail.com';
+const notificationEmail = 'raiznoblemx@gmail.com';
+const whatsappNumber = '522288780491';
 
 async function redis(...command) {
   const response = await fetch(process.env.UPSTASH_REDIS_REST_URL, {
@@ -19,20 +20,31 @@ async function redis(...command) {
   return data.result;
 }
 
-async function notifyLead(profile, createdAt) {
+function recommendation(profile) {
+  const target = `${profile.interest} ${profile.experience} ${profile.modality}`.toLowerCase();
+  if (target.includes('posing')) return 'Posing intensivo';
+  if (target.includes('compet')) return 'Preparación competitiva + 5 claves antes de competir';
+  if (target.includes('producto digital')) return target.includes('competido') ? 'Posing intensivo' : 'Diario de progreso';
+  if (target.includes('nutric')) return 'Solicitud de orientación en nutrición deportiva';
+  if (target.includes('entrenamiento')) return 'Solicitud de entrenamiento personalizado';
+  return 'Conversación inicial para definir la mejor ruta';
+}
+
+async function notifyLead(profile, createdAt, requestId) {
   if (!process.env.RESEND_API_KEY) return false;
   const response = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
       'Content-Type': 'application/json',
+      'Idempotency-Key': `aburto-lead-${requestId}`,
     },
     body: JSON.stringify({
       from: process.env.LEAD_FROM_EMAIL || 'Aburto Pro Coach <onboarding@resend.dev>',
       to: [notificationEmail],
-      subject: 'Nueva solicitud de prueba — Asistente Aburto',
+      subject: 'Nueva solicitud — Asistente Aburto',
       text: [
-        'Nueva solicitud de prueba desde el asistente de Aburto Pro Coach.',
+        'Nueva solicitud desde el asistente de Aburto Pro Coach.',
         '',
         `Nombre: ${profile.name}`,
         `Contacto: ${profile.contact}`,
@@ -40,6 +52,8 @@ async function notifyLead(profile, createdAt) {
         `Experiencia: ${profile.experience || 'Por definir'}`,
         `Modalidad: ${profile.modality || 'Por definir'}`,
         `Momento para comenzar: ${profile.timing || 'Por definir'}`,
+        `Ruta sugerida: ${recommendation(profile)}`,
+        `WhatsApp de seguimiento: +52 228 878 0491`,
         `Fecha: ${createdAt}`,
         '',
         'No se incluyen datos médicos ni información corporal de la calculadora.',
@@ -55,19 +69,14 @@ export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
   if (req.method !== 'POST') return res.status(405).json({ error: 'Método no permitido.' });
 
-  const ready = Boolean(process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN);
-  if (!ready) return res.status(503).json({ error: 'Captura temporalmente no disponible.' });
+  const storageReady = Boolean(process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN);
+  const emailReady = Boolean(process.env.RESEND_API_KEY);
+  if (!storageReady && !emailReady) return res.status(503).json({ error: 'Captura temporalmente no disponible.' });
 
   try {
     if (req.headers.origin && req.headers.origin !== `https://${req.headers.host}`) {
       return res.status(403).json({ error: 'Origen no permitido.' });
     }
-
-    const ip = String(req.headers['x-forwarded-for'] || '').split(',')[0].trim();
-    const rateKey = `aburto:lead-rate:${hash(ip)}:${Math.floor(Date.now() / 600000)}`;
-    const attempts = await redis('INCR', rateKey);
-    if (attempts === 1) await redis('EXPIRE', rateKey, 660);
-    if (attempts > 20) return res.status(429).json({ error: 'Demasiados intentos. Espera unos minutos.' });
 
     let body = req.body;
     if (typeof body === 'string') {
@@ -89,20 +98,36 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Falta nombre o contacto.' });
     }
 
+    if (storageReady) {
+      const ip = String(req.headers['x-forwarded-for'] || '').split(',')[0].trim();
+      const rateKey = `aburto:lead-rate:${hash(ip)}:${Math.floor(Date.now() / 600000)}`;
+      const attempts = await redis('INCR', rateKey);
+      if (attempts === 1) await redis('EXPIRE', rateKey, 660);
+      if (attempts > 20) return res.status(429).json({ error: 'Demasiados intentos. Espera unos minutos.' });
+    }
+
     const createdAt = new Date().toISOString();
     const id = randomBytes(12).toString('hex');
-    await redis('SET', `aburto:assistant-lead:${id}`, JSON.stringify({
-      ...profile,
-      createdAt,
-      source: 'assistant',
-      testRouting: true,
-    }), 'EX', 2592000);
+    let saved = false;
+    if (storageReady) {
+      try {
+        await redis('SET', `aburto:assistant-lead:${id}`, JSON.stringify({
+          ...profile,
+          recommendation: recommendation(profile),
+          createdAt,
+          source: 'assistant',
+          routing: { email: notificationEmail, whatsapp: whatsappNumber },
+        }), 'EX', 2592000);
+        saved = true;
+      } catch { saved = false; }
+    }
 
     let notified = false;
-    try { notified = await notifyLead(profile, createdAt); } catch { notified = false; }
+    try { notified = await notifyLead(profile, createdAt, id); } catch { notified = false; }
 
-    return res.status(200).json({ saved: true, notified });
+    if (!saved && !notified) return res.status(503).json({ error: 'No se pudo guardar ni enviar la solicitud.' });
+    return res.status(200).json({ saved, notified, whatsappNumber });
   } catch {
-    return res.status(503).json({ error: 'No se pudo guardar la solicitud.' });
+    return res.status(503).json({ error: 'No se pudo procesar la solicitud.' });
   }
 }

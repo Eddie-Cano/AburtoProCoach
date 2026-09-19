@@ -2,7 +2,7 @@ import { randomBytes, createHash, timingSafeEqual } from 'node:crypto';
 
 const hash = text => createHash('sha256').update(text).digest('hex');
 const emailKey = email => `aburto:lead:${hash(email)}`;
-const notificationEmail = process.env.LEAD_NOTIFY_EMAIL || 'raiznoblemx@gmail.com';
+const notificationEmail = 'raiznoblemx@gmail.com';
 
 async function notifyNewLead({ name, email, phone, createdAt }) {
   if (!process.env.RESEND_API_KEY) return false;
