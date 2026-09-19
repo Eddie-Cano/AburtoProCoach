@@ -31,7 +31,7 @@ El endpoint `api/chat.js` usa AI SDK y AI Gateway. En producción requiere AI Ga
 
 ## Herramientas gratuitas y registro compartido
 
-Calculadora de macros y temporizador de posing en `#herramientas`. El registro se solicita antes de revelar resultados o iniciar el temporizador. Requiere nombre, correo, teléfono y consentimiento de acceso. No se guarda información corporal ni se suscribe a publicidad.
+Calculadora de macros y temporizador de posing en `#herramientas`. Durante la revisión actual, ambas herramientas están en acceso abierto y muestran resultados sin solicitar nombre, correo ni teléfono. El sistema de registro permanece en el código para reactivarlo posteriormente. No se guarda información corporal ni se suscribe a publicidad.
 
 `api/access.js` usa Upstash Redis privado. Conectar una instancia al proyecto Vercel y configurar `UPSTASH_REDIS_REST_URL` y `UPSTASH_REDIS_REST_TOKEN` en Production; después redesplegar. Sin ambas variables el sitio indica que el registro abrirá próximamente: no simula guardados ni desbloquea resultados. La conexión actual de Vercel no tiene acceso al equipo raiz-noble; el aprovisionamiento sigue pendiente.
 
