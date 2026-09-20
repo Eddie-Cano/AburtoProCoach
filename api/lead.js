@@ -128,7 +128,6 @@ export default async function handler(req, res) {
     }
 
     const saved = core.saved || fallbackSaved;
-    if (!saved) return res.status(503).json({ error: 'No se pudo guardar la solicitud.' });
 
     const crmChannel = notifyEligible
       ? 'Consulta'
@@ -165,7 +164,7 @@ export default async function handler(req, res) {
     let whatsappQueued = false;
     let whatsappSent = false;
     let whatsappCopiesSent = 0;
-    if (notifyEligible && saved) {
+    if (notifyEligible) {
       const text = buildOwnerWhatsApp({
         name: profile.name,
         phone,
@@ -199,8 +198,11 @@ export default async function handler(req, res) {
       whatsappCopiesSent = deliveries.filter(delivery => delivery.sent === true).length;
     }
 
+    const accepted = saved || whatsappSent || crmDelivery.synced === true;
+    if (!accepted) return res.status(503).json({ error: 'No se pudo procesar la solicitud.' });
+
     return res.status(200).json({
-      saved: true,
+      saved,
       leadId: core.leadId || null,
       notifyEligible,
       whatsappQueued,
