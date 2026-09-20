@@ -80,22 +80,30 @@ export async function saveLeadCore(payload) {
 }
 
 export async function queueAndSendWhatsApp({ leadId, projectId, recipient, text }) {
-  if (!process.env.DATABASE_URL) return { queued: false, sent: false, reason: 'database_not_configured' };
-  const sql = neon(process.env.DATABASE_URL);
   const to = normalizePhone(recipient || process.env.ANDRES_NOTIFICATION_PHONE || DEFAULT_NOTIFY_PHONE);
-
-  const rows = await sql`
-    INSERT INTO notifications (project_id, lead_id, channel, recipient, message, status)
-    VALUES (${projectId}, ${leadId}, 'whatsapp', ${to}, ${text}, 'pending')
-    RETURNING id
-  `;
-  const notificationId = rows[0].id;
-
   const provider = String(process.env.WHATSAPP_PROVIDER || 'meta').toLowerCase();
+
+  let sql = null;
+  let notificationId = null;
+
+  if (process.env.DATABASE_URL && projectId && leadId) {
+    try {
+      sql = neon(process.env.DATABASE_URL);
+      const rows = await sql`
+        INSERT INTO notifications (project_id, lead_id, channel, recipient, message, status)
+        VALUES (${projectId}, ${leadId}, 'whatsapp', ${to}, ${text}, 'pending')
+        RETURNING id
+      `;
+      notificationId = rows?.[0]?.id || null;
+    } catch {
+      sql = null;
+      notificationId = null;
+    }
+  }
 
   if (provider === 'meta') {
     if (!process.env.META_WHATSAPP_TOKEN || !process.env.META_PHONE_NUMBER_ID) {
-      return { queued: true, sent: false, notificationId, reason: 'meta_not_configured' };
+      return { queued: Boolean(notificationId), sent: false, notificationId, reason: 'meta_not_configured' };
     }
 
     try {
@@ -122,23 +130,37 @@ export async function queueAndSendWhatsApp({ leadId, projectId, recipient, text 
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data?.error?.message || `Meta ${response.status}`);
 
-      await sql`
-        UPDATE notifications
-        SET status = 'sent',
-            external_message_id = ${String(data?.messages?.[0]?.id || '') || null},
-            sent_at = now()
-        WHERE id = ${notificationId}
-      `;
+      if (sql && notificationId) {
+        try {
+          await sql`
+            UPDATE notifications
+            SET status = 'sent',
+                external_message_id = ${String(data?.messages?.[0]?.id || '') || null},
+                sent_at = now()
+            WHERE id = ${notificationId}
+          `;
+        } catch {}
+      }
 
-      return { queued: true, sent: true, notificationId, provider: 'meta' };
-    } catch (error) {
-      await sql`
-        UPDATE notifications
-        SET status = 'failed'
-        WHERE id = ${notificationId}
-      `;
       return {
-        queued: true,
+        queued: Boolean(notificationId),
+        sent: true,
+        notificationId,
+        provider: 'meta',
+        externalMessageId: String(data?.messages?.[0]?.id || '') || null,
+      };
+    } catch (error) {
+      if (sql && notificationId) {
+        try {
+          await sql`
+            UPDATE notifications
+            SET status = 'failed'
+            WHERE id = ${notificationId}
+          `;
+        } catch {}
+      }
+      return {
+        queued: Boolean(notificationId),
         sent: false,
         notificationId,
         provider: 'meta',
@@ -148,7 +170,7 @@ export async function queueAndSendWhatsApp({ leadId, projectId, recipient, text 
   }
 
   if (!process.env.OPENWA_BASE_URL || !process.env.OPENWA_API_KEY || !process.env.OPENWA_SESSION_ID) {
-    return { queued: true, sent: false, notificationId, reason: 'openwa_not_configured' };
+    return { queued: Boolean(notificationId), sent: false, notificationId, reason: 'openwa_not_configured' };
   }
 
   try {
@@ -166,19 +188,31 @@ export async function queueAndSendWhatsApp({ leadId, projectId, recipient, text 
     );
     if (!response.ok) throw new Error(`OpenWA ${response.status}`);
     const data = await response.json().catch(() => ({}));
-    await sql`
-      UPDATE notifications
-      SET status = 'sent', external_message_id = ${String(data?.messageId || data?.id || '') || null}, sent_at = now()
-      WHERE id = ${notificationId}
-    `;
-    return { queued: true, sent: true, notificationId, provider: 'openwa' };
-  } catch (error) {
-    await sql`
-      UPDATE notifications
-      SET status = 'failed'
-      WHERE id = ${notificationId}
-    `;
-    return { queued: true, sent: false, notificationId, reason: 'openwa_send_failed' };
+
+    if (sql && notificationId) {
+      try {
+        await sql`
+          UPDATE notifications
+          SET status = 'sent',
+              external_message_id = ${String(data?.messageId || data?.id || '') || null},
+              sent_at = now()
+          WHERE id = ${notificationId}
+        `;
+      } catch {}
+    }
+
+    return { queued: Boolean(notificationId), sent: true, notificationId, provider: 'openwa' };
+  } catch {
+    if (sql && notificationId) {
+      try {
+        await sql`
+          UPDATE notifications
+          SET status = 'failed'
+          WHERE id = ${notificationId}
+      `;
+      } catch {}
+    }
+    return { queued: Boolean(notificationId), sent: false, notificationId, reason: 'openwa_send_failed' };
   }
 }
 
