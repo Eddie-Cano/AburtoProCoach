@@ -1,8 +1,8 @@
 import { randomBytes, createHash, timingSafeEqual } from 'node:crypto';
+import { saveLeadCore } from './_leadcore.js';
 
 const hash = text => createHash('sha256').update(text).digest('hex');
 const emailKey = email => `aburto:lead:${hash(email)}`;
-const notificationEmail = 'raiznoblemx@gmail.com';
 
 async function sendEmail({ to, subject, text, idempotencyKey }) {
   const response = await fetch('https://api.resend.com/emails', {
@@ -22,57 +22,6 @@ async function sendEmail({ to, subject, text, idempotencyKey }) {
   });
   if (!response.ok) throw new Error('email unavailable');
   return true;
-}
-
-async function notifyNewLead({ name, email, phone, createdAt, siteUrl }) {
-  if (!process.env.RESEND_API_KEY) return { ownerSent: false, userSent: false };
-  const recordId = hash(`${email}:${createdAt}`).slice(0, 32);
-  const ownerText = [
-    'Nuevo registro en las herramientas de Aburto Pro Coach.',
-    '',
-    `Nombre: ${name}`,
-    `Correo: ${email}`,
-    `Teléfono: ${phone}`,
-    `Fecha: ${createdAt}`,
-    '',
-    'No se incluyen peso, estatura, edad, macros ni otros datos corporales.',
-  ].join('\n');
-  const userText = [
-    `Hola ${name},`,
-    '',
-    'Confirmamos tu registro gratuito en las herramientas de Aburto Pro Coach.',
-    '',
-    'Tu acceso incluye:',
-    '• Calculadora educativa de macros',
-    '• Temporizador de práctica de posing',
-    '',
-    `Puedes volver a las herramientas aquí: ${siteUrl}`,
-    '',
-    `Datos registrados: ${email} · ${phone}`,
-    '',
-    'Por privacidad, este correo no contiene tu edad, peso, estatura, resultados de macros ni otros datos corporales.',
-    'Si tú no realizaste este registro, puedes ignorar este mensaje.',
-  ].join('\n');
-
-  const [ownerResult, userResult] = await Promise.allSettled([
-    sendEmail({
-      to: notificationEmail,
-      subject: 'Nuevo registro — Herramientas Aburto Pro Coach',
-      text: ownerText,
-      idempotencyKey: `aburto-tools-owner-${recordId}`,
-    }),
-    sendEmail({
-      to: email,
-      subject: 'Tu acceso a las herramientas — Aburto Pro Coach',
-      text: userText,
-      idempotencyKey: `aburto-tools-user-${recordId}`,
-    }),
-  ]);
-
-  return {
-    ownerSent: ownerResult.status === 'fulfilled',
-    userSent: userResult.status === 'fulfilled',
-  };
 }
 
 async function redis(...command) {
@@ -125,8 +74,7 @@ export default async function handler(req, res) {
 
     const key = emailKey(email);
     let record = await redis('GET', key);
-    let emailCopySent = false;
-    let ownerNotificationSent = false;
+    let coreSaved = false;
 
     if (!record && !returning) {
       const createdAt = new Date().toISOString();
@@ -142,19 +90,19 @@ export default async function handler(req, res) {
       record = await redis('GET', key);
       if (created) {
         try {
-          const origin = req.headers.origin || `https://${req.headers.host}`;
-          const delivery = await notifyNewLead({
+          const core = await saveLeadCore({
             name,
-            email,
             phone,
-            createdAt,
-            siteUrl: `${origin}/#herramientas`,
+            email,
+            source: 'free-tools',
+            interest: 'Herramientas gratuitas',
+            priority: 'normal',
+            summary: 'Registro para usar las herramientas gratuitas de Aburto Pro Coach.',
+            metadata: { access: 'tools', notifyEligible: false, createdAt },
           });
-          emailCopySent = delivery.userSent;
-          ownerNotificationSent = delivery.ownerSent;
+          coreSaved = core.saved === true;
         } catch {
-          emailCopySent = false;
-          ownerNotificationSent = false;
+          coreSaved = false;
         }
       }
     }
@@ -170,8 +118,8 @@ export default async function handler(req, res) {
     return res.status(200).json({
       ready: true,
       registered: true,
-      emailCopySent,
-      ownerNotificationSent,
+      coreSaved,
+      ownerNotificationSent: false,
     });
   } catch {
     return res.status(503).json({ error: 'No se pudo completar el registro. Tus herramientas se desbloquearán cuando confirmemos el guardado.' });
