@@ -99,7 +99,7 @@ export async function queueAndSendWhatsApp({ leadId, projectId, recipient, text 
     }
 
     try {
-      const graphVersion = process.env.META_GRAPH_VERSION || 'v23.0';
+      const graphVersion = process.env.META_GRAPH_VERSION || 'v25.0';
       const response = await fetch(
         `https://graph.facebook.com/${graphVersion}/${process.env.META_PHONE_NUMBER_ID}/messages`,
         {
