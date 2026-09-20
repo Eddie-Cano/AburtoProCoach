@@ -162,7 +162,7 @@ export default async function handler(req, res) {
     let whatsappQueued = false;
     let whatsappSent = false;
     let whatsappCopiesSent = 0;
-    if (notifyEligible && core.saved) {
+    if (notifyEligible && saved) {
       const text = buildOwnerWhatsApp({
         name: profile.name,
         phone,
