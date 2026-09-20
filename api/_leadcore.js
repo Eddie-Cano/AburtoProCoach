@@ -83,12 +83,69 @@ export async function queueAndSendWhatsApp({ leadId, projectId, recipient, text 
   if (!process.env.DATABASE_URL) return { queued: false, sent: false, reason: 'database_not_configured' };
   const sql = neon(process.env.DATABASE_URL);
   const to = normalizePhone(recipient || process.env.ANDRES_NOTIFICATION_PHONE || DEFAULT_NOTIFY_PHONE);
+
   const rows = await sql`
     INSERT INTO notifications (project_id, lead_id, channel, recipient, message, status)
     VALUES (${projectId}, ${leadId}, 'whatsapp', ${to}, ${text}, 'pending')
     RETURNING id
   `;
   const notificationId = rows[0].id;
+
+  const provider = String(process.env.WHATSAPP_PROVIDER || 'meta').toLowerCase();
+
+  if (provider === 'meta') {
+    if (!process.env.META_WHATSAPP_TOKEN || !process.env.META_PHONE_NUMBER_ID) {
+      return { queued: true, sent: false, notificationId, reason: 'meta_not_configured' };
+    }
+
+    try {
+      const graphVersion = process.env.META_GRAPH_VERSION || 'v23.0';
+      const response = await fetch(
+        `https://graph.facebook.com/${graphVersion}/${process.env.META_PHONE_NUMBER_ID}/messages`,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${process.env.META_WHATSAPP_TOKEN}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            messaging_product: 'whatsapp',
+            recipient_type: 'individual',
+            to,
+            type: 'text',
+            text: { preview_url: false, body: text },
+          }),
+          signal: AbortSignal.timeout(10000),
+        }
+      );
+
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data?.error?.message || `Meta ${response.status}`);
+
+      await sql`
+        UPDATE notifications
+        SET status = 'sent',
+            external_message_id = ${String(data?.messages?.[0]?.id || '') || null},
+            sent_at = now()
+        WHERE id = ${notificationId}
+      `;
+
+      return { queued: true, sent: true, notificationId, provider: 'meta' };
+    } catch (error) {
+      await sql`
+        UPDATE notifications
+        SET status = 'failed'
+        WHERE id = ${notificationId}
+      `;
+      return {
+        queued: true,
+        sent: false,
+        notificationId,
+        provider: 'meta',
+        reason: 'meta_send_failed',
+      };
+    }
+  }
 
   if (!process.env.OPENWA_BASE_URL || !process.env.OPENWA_API_KEY || !process.env.OPENWA_SESSION_ID) {
     return { queued: true, sent: false, notificationId, reason: 'openwa_not_configured' };
@@ -114,7 +171,7 @@ export async function queueAndSendWhatsApp({ leadId, projectId, recipient, text 
       SET status = 'sent', external_message_id = ${String(data?.messageId || data?.id || '') || null}, sent_at = now()
       WHERE id = ${notificationId}
     `;
-    return { queued: true, sent: true, notificationId };
+    return { queued: true, sent: true, notificationId, provider: 'openwa' };
   } catch (error) {
     await sql`
       UPDATE notifications
@@ -124,7 +181,6 @@ export async function queueAndSendWhatsApp({ leadId, projectId, recipient, text 
     return { queued: true, sent: false, notificationId, reason: 'openwa_send_failed' };
   }
 }
-
 
 export async function syncLeadToCrm(payload = {}) {
   const row = {
