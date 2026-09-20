@@ -6,6 +6,7 @@ import {
   isCoachingLead,
   queueAndSendWhatsApp,
   saveLeadCore,
+  syncLeadToCrm,
 } from './_leadcore.js';
 
 const hash = text => createHash('sha256').update(text).digest('hex');
@@ -126,6 +127,38 @@ export default async function handler(req, res) {
       }
     }
 
+    const crmChannel = notifyEligible
+      ? 'Consulta'
+      : (profile.interest.toLowerCase().includes('producto') ||
+         ['5 claves antes de competir','posing intensivo','diario de progreso'].some(item => profile.interest.toLowerCase().includes(item)))
+        ? 'Producto digital'
+        : 'Asistente';
+
+    const crmDelivery = await syncLeadToCrm({
+      id: core.leadId || '',
+      leadId: core.leadId || '',
+      projectId: core.projectId || '',
+      createdAt: core.createdAt || new Date().toISOString(),
+      channel: crmChannel,
+      source: notifyEligible ? `Asistente Aburto — Coaching ${profile.modality}` : 'Asistente Aburto',
+      name: profile.name,
+      email,
+      phone,
+      interest: profile.interest,
+      modality: profile.modality,
+      experience: profile.experience,
+      timing: profile.timing,
+      message: summary,
+      route,
+      status: 'Nuevo',
+      priority: notifyEligible ? 'Alta' : 'Media',
+      owner: notifyEligible ? 'Andrés Aburto' : 'Compartido',
+      consent: notifyEligible ? 'Solicitud directa' : '',
+      originUrl: req.headers.origin || `https://${req.headers.host}`,
+      notes: notifyEligible ? 'Avisar por WhatsApp al responsable.' : 'Registro sin alerta de WhatsApp.',
+      dedupeId: core.leadId || hash(`${profile.name}:${profile.contact}:${profile.interest}`),
+    });
+
     let whatsappQueued = false;
     let whatsappSent = false;
     if (notifyEligible && core.saved) {
@@ -158,6 +191,8 @@ export default async function handler(req, res) {
       whatsappQueued,
       whatsappSent,
       route,
+      crmSynced: crmDelivery.synced === true,
+      crmQueued: crmDelivery.queued === true,
     });
   } catch {
     return res.status(503).json({ error: 'No se pudo procesar la solicitud.' });
