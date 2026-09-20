@@ -161,6 +161,7 @@ export default async function handler(req, res) {
 
     let whatsappQueued = false;
     let whatsappSent = false;
+    let whatsappCopiesSent = 0;
     if (notifyEligible && core.saved) {
       const text = buildOwnerWhatsApp({
         name: profile.name,
@@ -171,14 +172,28 @@ export default async function handler(req, res) {
         timing: profile.timing,
         summary,
       });
-      const delivery = await queueAndSendWhatsApp({
-        leadId: core.leadId,
-        projectId: core.projectId,
-        recipient: process.env.ANDRES_NOTIFICATION_PHONE,
-        text,
-      });
-      whatsappQueued = delivery.queued === true;
-      whatsappSent = delivery.sent === true;
+
+      const recipients = [
+        process.env.ANDRES_NOTIFICATION_PHONE,
+        process.env.RAIZ_NOTIFICATION_PHONE,
+      ]
+        .map(value => String(value || '').trim())
+        .filter(Boolean)
+        .filter((value, index, list) => list.indexOf(value) === index);
+
+      const deliveries = [];
+      for (const recipient of recipients) {
+        deliveries.push(await queueAndSendWhatsApp({
+          leadId: core.leadId,
+          projectId: core.projectId,
+          recipient,
+          text,
+        }));
+      }
+
+      whatsappQueued = deliveries.some(delivery => delivery.queued === true);
+      whatsappSent = deliveries.some(delivery => delivery.sent === true);
+      whatsappCopiesSent = deliveries.filter(delivery => delivery.sent === true).length;
     }
 
     const saved = core.saved || fallbackSaved;
@@ -190,6 +205,7 @@ export default async function handler(req, res) {
       notifyEligible,
       whatsappQueued,
       whatsappSent,
+      whatsappCopiesSent,
       route,
       crmSynced: crmDelivery.synced === true,
       crmQueued: crmDelivery.queued === true,
