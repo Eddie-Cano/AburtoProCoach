@@ -127,6 +127,9 @@ export default async function handler(req, res) {
       }
     }
 
+    const saved = core.saved || fallbackSaved;
+    if (!saved) return res.status(503).json({ error: 'No se pudo guardar la solicitud.' });
+
     const crmChannel = notifyEligible
       ? 'Consulta'
       : (profile.interest.toLowerCase().includes('producto') ||
@@ -195,9 +198,6 @@ export default async function handler(req, res) {
       whatsappSent = deliveries.some(delivery => delivery.sent === true);
       whatsappCopiesSent = deliveries.filter(delivery => delivery.sent === true).length;
     }
-
-    const saved = core.saved || fallbackSaved;
-    if (!saved) return res.status(503).json({ error: 'No se pudo guardar la solicitud.' });
 
     return res.status(200).json({
       saved: true,
