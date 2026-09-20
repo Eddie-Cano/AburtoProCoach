@@ -2,6 +2,8 @@ import { neon } from '@neondatabase/serverless';
 
 const PROJECT_SLUG = 'andres-aburto';
 const DEFAULT_NOTIFY_PHONE = '522282780491';
+const CRM_SHEET_ID = '1yE6PJDnBkKTVX1vNLb0dHByWn7FyqkvIn2Er3IMO1FU';
+const CRM_SHEET_TAB = 'Contactos';
 
 export function isCoachingLead(profile = {}) {
   const modality = String(profile.modality || '').toLowerCase();
@@ -120,5 +122,94 @@ export async function queueAndSendWhatsApp({ leadId, projectId, recipient, text 
       WHERE id = ${notificationId}
     `;
     return { queued: true, sent: false, notificationId, reason: 'openwa_send_failed' };
+  }
+}
+
+
+export async function syncLeadToCrm(payload = {}) {
+  const row = {
+    id: payload.id || '',
+    createdAt: payload.createdAt || new Date().toISOString(),
+    channel: payload.channel || 'Otro',
+    source: payload.source || '',
+    name: payload.name || '',
+    email: payload.email || '',
+    phone: payload.phone || '',
+    interest: payload.interest || '',
+    modality: payload.modality || '',
+    experience: payload.experience || '',
+    timing: payload.timing || '',
+    message: payload.message || '',
+    route: payload.route || '',
+    status: payload.status || 'Nuevo',
+    priority: payload.priority || 'Media',
+    owner: payload.owner || '',
+    nextFollowUp: payload.nextFollowUp || '',
+    notes: payload.notes || '',
+    consent: payload.consent || '',
+    originUrl: payload.originUrl || '',
+    utmSource: payload.utmSource || '',
+    utmCampaign: payload.utmCampaign || '',
+    updatedAt: payload.updatedAt || new Date().toISOString(),
+    dedupeId: payload.dedupeId || payload.id || '',
+  };
+
+  // The live site cannot reuse the ChatGPT Google Drive connection.
+  // A small Google Apps Script/webhook (or service-account adapter) will receive
+  // this exact CRM payload and append it to the existing Contactos tab.
+  if (!process.env.GOOGLE_SHEETS_WEBHOOK_URL) {
+    if (process.env.DATABASE_URL && payload.projectId && payload.leadId) {
+      try {
+        const sql = neon(process.env.DATABASE_URL);
+        await sql`
+          INSERT INTO lead_events (project_id, lead_id, event_type, source, payload)
+          VALUES (
+            ${payload.projectId},
+            ${payload.leadId},
+            'crm.sync.pending',
+            ${payload.source || 'website'},
+            ${JSON.stringify({ sheetId: CRM_SHEET_ID, sheetTab: CRM_SHEET_TAB, row })}::jsonb
+          )
+        `;
+      } catch {}
+    }
+    return { synced: false, queued: true, reason: 'crm_webhook_not_configured' };
+  }
+
+  try {
+    const response = await fetch(process.env.GOOGLE_SHEETS_WEBHOOK_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(process.env.CRM_WEBHOOK_SECRET
+          ? { 'X-CRM-Secret': process.env.CRM_WEBHOOK_SECRET }
+          : {}),
+      },
+      body: JSON.stringify({
+        sheetId: CRM_SHEET_ID,
+        sheetTab: CRM_SHEET_TAB,
+        row,
+      }),
+      signal: AbortSignal.timeout(10000),
+    });
+    if (!response.ok) throw new Error(`CRM webhook ${response.status}`);
+    return { synced: true, queued: false };
+  } catch {
+    if (process.env.DATABASE_URL && payload.projectId && payload.leadId) {
+      try {
+        const sql = neon(process.env.DATABASE_URL);
+        await sql`
+          INSERT INTO lead_events (project_id, lead_id, event_type, source, payload)
+          VALUES (
+            ${payload.projectId},
+            ${payload.leadId},
+            'crm.sync.failed',
+            ${payload.source || 'website'},
+            ${JSON.stringify({ sheetId: CRM_SHEET_ID, sheetTab: CRM_SHEET_TAB, row })}::jsonb
+          )
+        `;
+      } catch {}
+    }
+    return { synced: false, queued: true, reason: 'crm_webhook_failed' };
   }
 }
