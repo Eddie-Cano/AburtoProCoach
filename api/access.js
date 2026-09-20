@@ -1,5 +1,5 @@
 import { randomBytes, createHash, timingSafeEqual } from 'node:crypto';
-import { saveLeadCore } from './_leadcore.js';
+import { saveLeadCore, syncLeadToCrm } from './_leadcore.js';
 
 const hash = text => createHash('sha256').update(text).digest('hex');
 const emailKey = email => `aburto:lead:${hash(email)}`;
@@ -101,6 +101,25 @@ export default async function handler(req, res) {
             metadata: { access: 'tools', notifyEligible: false, createdAt },
           });
           coreSaved = core.saved === true;
+          await syncLeadToCrm({
+            id: core.leadId || '',
+            leadId: core.leadId || '',
+            projectId: core.projectId || '',
+            createdAt: core.createdAt || createdAt,
+            channel: 'Herramienta',
+            source: 'Herramientas gratuitas',
+            name,
+            email,
+            phone,
+            interest: 'Herramientas gratuitas',
+            status: 'Nuevo',
+            priority: 'Media',
+            owner: 'Compartido',
+            consent: 'Sí',
+            originUrl: req.headers.origin || `https://${req.headers.host}`,
+            notes: 'Registro de herramienta. No enviar alerta por WhatsApp.',
+            dedupeId: core.leadId || hash(`${email}:${phone}`),
+          });
         } catch {
           coreSaved = false;
         }
