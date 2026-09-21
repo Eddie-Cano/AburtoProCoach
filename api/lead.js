@@ -49,11 +49,11 @@ async function sendEmail({ to, subject, text, idempotencyKey }) {
 
 function recommendation(profile) {
   const target = `${profile.interest} ${profile.experience} ${profile.modality}`.toLowerCase();
-  if (target.includes('coaching 1 a 1')) return target.includes('presencial') ? 'Coaching 1 a 1 presencial — $10,000 MXN' : target.includes('en línea') || target.includes('online') ? 'Coaching 1 a 1 online — $2,699 MXN' : 'Coaching 1 a 1 — online $2,699 MXN / presencial $10,000 MXN';
-  if (target.includes('bodybuilding')) return 'Bodybuilding Training System — $3,000 MXN';
-  if (target.includes('posing coaching')) return 'Posing Coaching | Aburto Team — $2,500 MXN';
-  if (target.includes('preparación para competencia')) return 'Preparación para Competencia — $4,000 MXN';
-  if (target.includes('5 claves')) return '5 Claves Antes de Competir — $300 MXN';
+  if (target.includes('coaching 1 a 1')) return target.includes('presencial') ? 'Coaching 1 a 1 presencial — $10,440 MXN' : target.includes('en línea') || target.includes('online') ? 'Coaching 1 a 1 online — $2,830 MXN' : 'Coaching 1 a 1 — online $2,830 MXN / presencial $10,440 MXN';
+  if (target.includes('bodybuilding')) return 'Bodybuilding Training System — $3,140 MXN';
+  if (target.includes('posing coaching')) return 'Posing Coaching | Aburto Team — $2,620 MXN';
+  if (target.includes('preparación para competencia')) return 'Preparación para Competencia — $4,180 MXN';
+  if (target.includes('5 claves')) return '5 Claves Antes de Competir — $320 MXN';
   if (target.includes('posing intensivo')) return 'Posing Intensivo — próximamente';
   if (target.includes('diario de progreso')) return 'Diario de Progreso — próximamente';
   return 'Conversación inicial para definir la mejor ruta';
