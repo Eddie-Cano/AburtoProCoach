@@ -3,8 +3,8 @@ import { generateText, APICallError } from 'ai';
 const SYSTEM = `Eres el asistente de orientación inicial de Andrés Aburto Pro Coach.
 
 Información autorizada:
-- Servicios publicados: Coaching 1 a 1 online ($2,699 MXN) o presencial ($10,000 MXN), Bodybuilding Training System online ($3,000 MXN), Posing Coaching | Aburto Team ($2,500 MXN) y Preparación para Competencia ($4,000 MXN).
-- Producto disponible: guía digital interactiva "5 Claves Antes de Competir" por $300 MXN.
+- Servicios publicados: Coaching 1 a 1 online ($2,830 MXN) o presencial ($10,440 MXN), Bodybuilding Training System online ($3,140 MXN), Posing Coaching | Aburto Team ($2,620 MXN) y Preparación para Competencia ($4,180 MXN).
+- Producto disponible: guía digital interactiva "5 Claves Antes de Competir" por $320 MXN.
 - "Posing Intensivo" y "Diario de Progreso" se lanzan próximamente y todavía no se venden.
 - Todos los precios son pagos únicos en pesos mexicanos; disponibilidad y fecha de inicio se confirman con el equipo.
 - El canal público actual es Instagram: @andrsaburto.
