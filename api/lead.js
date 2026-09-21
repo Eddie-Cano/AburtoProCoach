@@ -190,7 +190,7 @@ export default async function handler(req, res) {
       owner: notifyEligible ? 'Andrés Aburto' : 'Compartido',
       consent: profile.consent === true ? 'Sí' : notifyEligible ? 'Solicitud directa' : '',
       originUrl: req.headers.referer || req.headers.origin || `https://${req.headers.host}`,
-      notes: notifyEligible ? 'Avisar por WhatsApp al responsable.' : 'Registro sin alerta de WhatsApp.',
+      notes: notifyEligible ? 'Solicitud registrada para seguimiento. WhatsApp reservado a ventas confirmadas por Stripe.' : 'Registro sin alerta de WhatsApp.',
       dedupeId: core.leadId || submissionId,
     });
 
