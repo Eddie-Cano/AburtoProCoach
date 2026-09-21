@@ -1,16 +1,25 @@
 # Andrés Aburto — primera capa funcional
 
-Sitio de presentación, orientación y validación de productos digitales.
+Sitio de presentación, tienda de servicios, herramientas y productos digitales.
 
 ## Alcance público actual
 
 - Presentación de Andrés, servicios, método y trayectoria.
-- Primera colección digital: guía de competencia, curso de posing y diario de progreso.
-- Lista prioritaria sin cobros ni descargas hasta validar contenido, precio y fecha.
+- Guía digital “5 Claves Antes de Competir” publicada a $300 MXN.
+- Posing Intensivo y Diario de Progreso visibles como “Próximamente”.
+- Tienda con Coaching 1 a 1, Bodybuilding Training System, Posing Coaching y Preparación para Competencia.
 - Asistente conversacional con ruta guiada y respuesta generativa mediante Vercel AI Gateway.
 - Resumen de solicitud con copia automática por correo y continuación directa por WhatsApp.
 
-La comunidad, la tienda, el merch y el carrito fueron retirados de la experiencia pública hasta una fase posterior.
+La comunidad y el merch permanecen fuera de la experiencia pública hasta una fase posterior.
+
+## Stripe
+
+El catálogo live de Raíz Noble contiene cinco productos. Coaching 1 a 1 es un solo producto con dos precios: online y presencial. Los seis Payment Links están activos y documentados en `stripe-catalog.json`; usan Checkout alojado por Stripe y métodos de pago dinámicos. No se habilitó Stripe Tax.
+
+Los botones principales llevan al checkout. Cada servicio conserva una opción secundaria para hablar con el asistente; esas solicitudes siguen entrando al CRM y generan la alerta de WhatsApp correspondiente.
+
+Los IDs no secretos del catálogo están documentados en `stripe-catalog.json`. No guardar claves privadas ni secretos de webhook en Git.
 
 ## Desarrollo
 
@@ -24,8 +33,8 @@ El endpoint `api/chat.js` usa AI SDK y AI Gateway. En producción requiere AI Ga
 ## Pendientes de validación con Andrés
 
 - Biografía, credenciales y campeonatos publicados.
-- Modalidades, ubicación, disponibilidad y precios.
-- Contenido y fecha de lanzamiento de los tres productos.
+- Ubicación, disponibilidad y fechas de inicio.
+- Fecha de lanzamiento de Posing Intensivo y Diario de Progreso.
 - Canal definitivo de recepción y almacenamiento de leads.
 - Dominio oficial.
 

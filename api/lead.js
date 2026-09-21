@@ -27,13 +27,35 @@ async function redis(...command) {
   return data.result;
 }
 
+async function sendEmail({ to, subject, text, idempotencyKey }) {
+  const response = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+      'Content-Type': 'application/json',
+      'Idempotency-Key': idempotencyKey,
+    },
+    body: JSON.stringify({
+      from: process.env.LEAD_FROM_EMAIL || 'Aburto Pro Coach <onboarding@resend.dev>',
+      to: [to],
+      subject,
+      text,
+    }),
+    signal: AbortSignal.timeout(8000),
+  });
+  if (!response.ok) throw new Error('notification unavailable');
+  return true;
+}
+
 function recommendation(profile) {
   const target = `${profile.interest} ${profile.experience} ${profile.modality}`.toLowerCase();
-  if (target.includes('posing')) return 'Posing intensivo';
-  if (target.includes('compet')) return 'Preparación competitiva + 5 claves antes de competir';
-  if (target.includes('producto digital')) return target.includes('competido') ? 'Posing intensivo' : 'Diario de progreso';
-  if (target.includes('nutric')) return 'Solicitud de orientación en nutrición deportiva';
-  if (target.includes('entrenamiento')) return 'Solicitud de entrenamiento personalizado';
+  if (target.includes('coaching 1 a 1')) return target.includes('presencial') ? 'Coaching 1 a 1 presencial — $10,000 MXN' : target.includes('en línea') || target.includes('online') ? 'Coaching 1 a 1 online — $2,699 MXN' : 'Coaching 1 a 1 — online $2,699 MXN / presencial $10,000 MXN';
+  if (target.includes('bodybuilding')) return 'Bodybuilding Training System — $3,000 MXN';
+  if (target.includes('posing coaching')) return 'Posing Coaching | Aburto Team — $2,500 MXN';
+  if (target.includes('preparación para competencia')) return 'Preparación para Competencia — $4,000 MXN';
+  if (target.includes('5 claves')) return '5 Claves Antes de Competir — $300 MXN';
+  if (target.includes('posing intensivo')) return 'Posing Intensivo — próximamente';
+  if (target.includes('diario de progreso')) return 'Diario de Progreso — próximamente';
   return 'Conversación inicial para definir la mejor ruta';
 }
 
@@ -60,6 +82,7 @@ export default async function handler(req, res) {
       timing: clean(body?.timing),
       name: clean(body?.name).slice(0, 100),
       contact: clean(body?.contact).slice(0, 200),
+      consent: body?.consent === true ? true : body?.consent === false ? false : null,
     };
 
     if (profile.name.length < 2 || profile.contact.length < 3) {
@@ -79,6 +102,11 @@ export default async function handler(req, res) {
     const email = extractEmail(profile.contact);
     const phone = extractPhone(profile.contact);
     const notifyEligible = isCoachingLead(profile);
+    const lowerInterest = profile.interest.toLowerCase();
+    const isPosingTool = lowerInterest.includes('temporizador') || lowerInterest.includes('posing lab');
+    const isProduct = lowerInterest.includes('producto') ||
+      ['5 claves antes de competir', 'posing intensivo', 'diario de progreso'].some(item => lowerInterest.includes(item));
+    const submissionId = hash(`${profile.name}:${profile.contact}:${profile.interest}:${Date.now()}`).slice(0, 24);
     const summary = [
       `${profile.name} solicita atención de Andrés.`,
       `Interés: ${profile.interest || 'Por definir'}.`,
@@ -94,7 +122,7 @@ export default async function handler(req, res) {
         name: profile.name,
         phone,
         email,
-        source: profile.interest.toLowerCase().includes('temporizador') ? 'posing-lab' : 'assistant',
+        source: isPosingTool ? 'posing-lab' : 'assistant',
         interest: profile.interest,
         priority: notifyEligible ? 'high' : 'normal',
         summary,
@@ -113,11 +141,10 @@ export default async function handler(req, res) {
     let fallbackSaved = false;
     if (!core.saved && storageReady) {
       try {
-        const id = hash(`${profile.name}:${profile.contact}:${Date.now()}`).slice(0, 24);
-        await redis('SET', `aburto:assistant-lead:${id}`, JSON.stringify({
+        await redis('SET', `aburto:assistant-lead:${submissionId}`, JSON.stringify({
           ...profile,
           recommendation: route,
-          source: profile.interest.toLowerCase().includes('temporizador') ? 'posing-lab' : 'assistant',
+          source: isPosingTool ? 'posing-lab' : 'assistant',
           notifyEligible,
           createdAt: new Date().toISOString(),
         }), 'EX', 2592000);
@@ -131,18 +158,25 @@ export default async function handler(req, res) {
 
     const crmChannel = notifyEligible
       ? 'Consulta'
-      : (profile.interest.toLowerCase().includes('producto') ||
-         ['5 claves antes de competir','posing intensivo','diario de progreso'].some(item => profile.interest.toLowerCase().includes(item)))
+      : isPosingTool
+        ? 'Herramienta'
+        : isProduct
         ? 'Producto digital'
         : 'Asistente';
 
     const crmDelivery = await syncLeadToCrm({
-      id: core.leadId || '',
+      id: core.leadId || `AB-${submissionId.slice(0, 12)}`,
       leadId: core.leadId || '',
       projectId: core.projectId || '',
       createdAt: core.createdAt || new Date().toISOString(),
       channel: crmChannel,
-      source: notifyEligible ? `Asistente Aburto — Coaching ${profile.modality}` : 'Asistente Aburto',
+      source: notifyEligible
+        ? `Asistente Aburto — Coaching ${profile.modality}`
+        : isPosingTool
+          ? 'Posing Lab'
+          : isProduct
+            ? profile.interest
+            : 'Asistente Aburto',
       name: profile.name,
       email,
       phone,
@@ -155,11 +189,36 @@ export default async function handler(req, res) {
       status: 'Nuevo',
       priority: notifyEligible ? 'Alta' : 'Media',
       owner: notifyEligible ? 'Andrés Aburto' : 'Compartido',
-      consent: notifyEligible ? 'Solicitud directa' : '',
-      originUrl: req.headers.origin || `https://${req.headers.host}`,
+      consent: profile.consent === true ? 'Sí' : notifyEligible ? 'Solicitud directa' : '',
+      originUrl: req.headers.referer || req.headers.origin || `https://${req.headers.host}`,
       notes: notifyEligible ? 'Avisar por WhatsApp al responsable.' : 'Registro sin alerta de WhatsApp.',
-      dedupeId: core.leadId || hash(`${profile.name}:${profile.contact}:${profile.interest}`),
+      dedupeId: core.leadId || submissionId,
     });
+
+    let userCopySent = false;
+    if (isPosingTool && email && process.env.RESEND_API_KEY) {
+      try {
+        await sendEmail({
+          to: email,
+          subject: 'Tu acceso al Posing Lab — Aburto Pro Coach',
+          text: [
+            `Hola ${profile.name},`,
+            '',
+            'Tu acceso gratuito al Posing Lab quedó activado.',
+            '',
+            `Categoría inicial: ${profile.experience || 'Por definir'}`,
+            `Ruta sugerida: ${route}`,
+            '',
+            'Por privacidad, esta copia no contiene datos médicos, medidas corporales ni resultados de la calculadora.',
+            'Si tú no enviaste esta solicitud, puedes ignorar este mensaje.',
+          ].join('\n'),
+          idempotencyKey: `aburto-posing-user-${submissionId}`,
+        });
+        userCopySent = true;
+      } catch {
+        userCopySent = false;
+      }
+    }
 
     let whatsappQueued = false;
     let whatsappSent = false;
@@ -209,6 +268,7 @@ export default async function handler(req, res) {
       whatsappSent,
       whatsappCopiesSent,
       route,
+      userCopySent,
       crmSynced: crmDelivery.synced === true,
       crmQueued: crmDelivery.queued === true,
     });

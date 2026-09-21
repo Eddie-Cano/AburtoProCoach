@@ -1,0 +1,39 @@
+{
+  "livemode": true,
+  "account": "Raiz Noble",
+  "currency": "mxn",
+  "products": {
+    "5-claves-antes-de-competir": {
+      "product": "prod_VIWR9d64U3MeHe",
+      "prices": { "digital": "price_1UHvOz1f6JXFxDAPcK6xQBBo" }
+    },
+    "coaching-1-a-1": {
+      "product": "prod_VIWSmeR7Ztgzwj",
+      "prices": {
+        "online": "price_1UHvPW1f6JXFxDAPOOqxkxAg",
+        "presencial": "price_1UHvPf1f6JXFxDAPvgFYPmD7"
+      }
+    },
+    "bodybuilding-training-system": {
+      "product": "prod_VIWSav9VbkmIqp",
+      "prices": { "online": "price_1UHvPN1f6JXFxDAPdUzcpGl8" }
+    },
+    "posing-coaching": {
+      "product": "prod_VIWS9mLaRaL3W9",
+      "prices": { "coaching": "price_1UHvPI1f6JXFxDAPFqCQFnny" }
+    },
+    "preparacion-competencia": {
+      "product": "prod_VIWSOpE624buAs",
+      "prices": { "competition": "price_1UHvPR1f6JXFxDAPzGato5Sa" }
+    }
+  },
+  "payment_links": {
+    "5-claves-antes-de-competir": "https://buy.stripe.com/14A9ALfR789Rbl03rmfUQ01",
+    "coaching-1-a-1-online": "https://book.stripe.com/5kQ6oz34l4XF88Od1WfUQ02",
+    "coaching-1-a-1-presencial": "https://book.stripe.com/aFa5kvdIZgGn60G0fafUQ00",
+    "bodybuilding-training-system": "https://book.stripe.com/8x24gr34lgGnbl0d1WfUQ03",
+    "posing-coaching": "https://book.stripe.com/28EaEP7kB89R2Ou5zufUQ04",
+    "preparacion-competencia": "https://book.stripe.com/4gM7sD6gxcq7dt8aTOfUQ05"
+  },
+  "blocked_reason": null
+}

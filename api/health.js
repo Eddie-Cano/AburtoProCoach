@@ -13,6 +13,7 @@ export default function handler(req, res) {
     databaseConfigured: Boolean(process.env.DATABASE_URL),
     redisConfigured: Boolean(process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN),
     crmWebhookConfigured: Boolean(process.env.GOOGLE_SHEETS_WEBHOOK_URL),
+    crmWebhookSecretConfigured: Boolean(process.env.GOOGLE_SHEETS_WEBHOOK_SECRET || process.env.CRM_WEBHOOK_SECRET),
     timestamp: new Date().toISOString(),
   });
 }

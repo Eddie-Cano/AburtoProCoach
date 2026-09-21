@@ -4,26 +4,6 @@ import { saveLeadCore, syncLeadToCrm } from './_leadcore.js';
 const hash = text => createHash('sha256').update(text).digest('hex');
 const emailKey = email => `aburto:lead:${hash(email)}`;
 
-async function sendEmail({ to, subject, text, idempotencyKey }) {
-  const response = await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
-      'Content-Type': 'application/json',
-      'Idempotency-Key': idempotencyKey,
-    },
-    body: JSON.stringify({
-      from: process.env.LEAD_FROM_EMAIL || 'Aburto Pro Coach <onboarding@resend.dev>',
-      to: [to],
-      subject,
-      text,
-    }),
-    signal: AbortSignal.timeout(8000),
-  });
-  if (!response.ok) throw new Error('email unavailable');
-  return true;
-}
-
 async function redis(...command) {
   const response = await fetch(process.env.UPSTASH_REDIS_REST_URL, {
     method: 'POST',
@@ -42,21 +22,25 @@ async function redis(...command) {
 
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
-  const ready = Boolean(process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN);
+  const redisReady = Boolean(process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN);
+  const sheetReady = Boolean(process.env.GOOGLE_SHEETS_WEBHOOK_URL);
+  const ready = redisReady || sheetReady;
   if (!['GET', 'POST'].includes(req.method)) return res.status(405).json({ error: 'Método no permitido.' });
   if (!ready) return res.status(req.method === 'GET' ? 200 : 503).json({ ready: false, registered: false, error: 'El registro está temporalmente fuera de servicio. Inténtalo más tarde.' });
 
   try {
     const token = String(req.headers.cookie || '').match(/(?:^|;\s*)aburto_access=([a-f0-9]{64})(?:;|$)/)?.[1];
-    if (token && await redis('GET', `aburto:session:${hash(token)}`)) return res.status(200).json({ ready: true, registered: true });
+    if (redisReady && token && await redis('GET', `aburto:session:${hash(token)}`)) return res.status(200).json({ ready: true, registered: true });
     if (req.method === 'GET') return res.status(200).json({ ready: true, registered: false });
     if (req.headers.origin && req.headers.origin !== `https://${req.headers.host}`) return res.status(403).json({ error: 'Origen no permitido.' });
 
-    const ip = String(req.headers['x-forwarded-for'] || '').split(',')[0].trim();
-    const rateKey = `aburto:rate:${hash(ip)}:${Math.floor(Date.now() / 600000)}`;
-    const attempts = await redis('INCR', rateKey);
-    if (attempts === 1) await redis('EXPIRE', rateKey, 660);
-    if (attempts > 20) return res.status(429).json({ error: 'Demasiados intentos. Espera unos minutos.' });
+    if (redisReady) {
+      const ip = String(req.headers['x-forwarded-for'] || '').split(',')[0].trim();
+      const rateKey = `aburto:rate:${hash(ip)}:${Math.floor(Date.now() / 600000)}`;
+      const attempts = await redis('INCR', rateKey);
+      if (attempts === 1) await redis('EXPIRE', rateKey, 660);
+      if (attempts > 20) return res.status(429).json({ error: 'Demasiados intentos. Espera unos minutos.' });
+    }
 
     let body = req.body;
     if (typeof body === 'string') {
@@ -73,22 +57,27 @@ export default async function handler(req, res) {
     }
 
     const key = emailKey(email);
-    let record = await redis('GET', key);
+    let record = redisReady ? await redis('GET', key) : null;
     let coreSaved = false;
+    let crmSynced = false;
 
     if (!record && !returning) {
       const createdAt = new Date().toISOString();
-      const created = await redis('SET', key, JSON.stringify({
-        name,
-        email,
-        phoneHash: hash(phone),
-        phone,
-        createdAt,
-        consentVersion: 'tools-v1',
-        marketing: false,
-      }), 'NX');
-      record = await redis('GET', key);
-      if (created) {
+      const submissionId = hash(`${email}:${phone}:${createdAt}`).slice(0, 24);
+      let created = false;
+      if (redisReady) {
+        created = await redis('SET', key, JSON.stringify({
+          name,
+          email,
+          phoneHash: hash(phone),
+          phone,
+          createdAt,
+          consentVersion: 'tools-v1',
+          marketing: false,
+        }), 'NX');
+        record = await redis('GET', key);
+      }
+      if (created || sheetReady) {
         try {
           const core = await saveLeadCore({
             name,
@@ -101,8 +90,8 @@ export default async function handler(req, res) {
             metadata: { access: 'tools', notifyEligible: false, createdAt },
           });
           coreSaved = core.saved === true;
-          await syncLeadToCrm({
-            id: core.leadId || '',
+          const crmDelivery = await syncLeadToCrm({
+            id: core.leadId || `AB-${submissionId.slice(0, 12)}`,
             leadId: core.leadId || '',
             projectId: core.projectId || '',
             createdAt: core.createdAt || createdAt,
@@ -118,8 +107,9 @@ export default async function handler(req, res) {
             consent: 'Sí',
             originUrl: req.headers.origin || `https://${req.headers.host}`,
             notes: 'Registro de herramienta. No enviar alerta por WhatsApp.',
-            dedupeId: core.leadId || hash(`${email}:${phone}`),
+            dedupeId: core.leadId || submissionId,
           });
+          crmSynced = crmDelivery.synced === true;
         } catch {
           coreSaved = false;
         }
@@ -127,17 +117,22 @@ export default async function handler(req, res) {
     }
 
     const lead = record ? (typeof record === 'string' ? JSON.parse(record) : record) : null;
-    if (!lead || !timingSafeEqual(Buffer.from(lead.phoneHash, 'hex'), Buffer.from(hash(phone), 'hex'))) {
+    if (redisReady && (!lead || !timingSafeEqual(Buffer.from(lead.phoneHash, 'hex'), Buffer.from(hash(phone), 'hex')))) {
       return res.status(400).json({ error: 'No pudimos habilitar el acceso. Revisa los datos de tu registro o usa otro correo.' });
     }
+    if (!redisReady && returning) return res.status(400).json({ error: 'La recuperación de acceso todavía no está disponible. Crea un registro nuevo.' });
+    if (!redisReady && !crmSynced) return res.status(503).json({ error: 'No se pudo guardar el registro.' });
 
     const session = randomBytes(32).toString('hex');
-    await redis('SET', `aburto:session:${hash(session)}`, key, 'EX', 15552000);
-    res.setHeader('Set-Cookie', `aburto_access=${session}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=15552000`);
+    if (redisReady) {
+      await redis('SET', `aburto:session:${hash(session)}`, key, 'EX', 15552000);
+      res.setHeader('Set-Cookie', `aburto_access=${session}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=15552000`);
+    }
     return res.status(200).json({
       ready: true,
       registered: true,
       coreSaved,
+      crmSynced,
       ownerNotificationSent: false,
     });
   } catch {

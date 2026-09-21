@@ -8,7 +8,8 @@ const CRM_SHEET_TAB = 'Contactos';
 export function isCoachingLead(profile = {}) {
   const modality = String(profile.modality || '').toLowerCase();
   const interest = String(profile.interest || '').toLowerCase();
-  const isDirect = modality.includes('en línea') || modality.includes('online') || modality.includes('presencial');
+  const serviceNames = ['coaching 1 a 1', 'bodybuilding training system', 'posing coaching', 'preparación para competencia'];
+  const isDirect = serviceNames.some(service => interest.includes(service)) || modality.includes('en línea') || modality.includes('online') || modality.includes('presencial');
   const excluded = interest.includes('producto') || interest.includes('posing intensivo') || interest.includes('diario de progreso') || interest.includes('claves antes de competir') || interest.includes('temporizador') || interest.includes('herramienta');
   return isDirect && !excluded;
 }
@@ -267,22 +268,31 @@ export async function syncLeadToCrm(payload = {}) {
   }
 
   try {
+    const webhookSecret = process.env.GOOGLE_SHEETS_WEBHOOK_SECRET || process.env.CRM_WEBHOOK_SECRET || '';
     const response = await fetch(process.env.GOOGLE_SHEETS_WEBHOOK_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        ...(process.env.CRM_WEBHOOK_SECRET
-          ? { 'X-CRM-Secret': process.env.CRM_WEBHOOK_SECRET }
+        ...(webhookSecret
+          ? { 'X-CRM-Secret': webhookSecret }
           : {}),
       },
       body: JSON.stringify({
+        secret: webhookSecret,
         sheetId: CRM_SHEET_ID,
         sheetTab: CRM_SHEET_TAB,
         row,
+        ...row,
+        whatsapp: row.phone,
+        recommendation: row.route,
+        sourceUrl: row.originUrl,
+        technicalId: row.dedupeId,
       }),
       signal: AbortSignal.timeout(10000),
     });
     if (!response.ok) throw new Error(`CRM webhook ${response.status}`);
+    const data = await response.json().catch(() => ({}));
+    if (data.ok !== true) throw new Error('CRM webhook rejected');
     return { synced: true, queued: false };
   } catch {
     if (process.env.DATABASE_URL && payload.projectId && payload.leadId) {
