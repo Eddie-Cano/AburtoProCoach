@@ -1,10 +1,8 @@
 import { createHash } from 'node:crypto';
 import {
-  buildOwnerWhatsApp,
   extractEmail,
   extractPhone,
   isCoachingLead,
-  queueAndSendWhatsApp,
   saveLeadCore,
   syncLeadToCrm,
 } from './_leadcore.js';
@@ -221,53 +219,15 @@ export default async function handler(req, res) {
       }
     }
 
-    let whatsappQueued = false;
-    let whatsappSent = false;
-    let whatsappCopiesSent = 0;
-    if (notifyEligible) {
-      const text = buildOwnerWhatsApp({
-        name: profile.name,
-        phone,
-        email,
-        interest: profile.interest,
-        modality: profile.modality,
-        timing: profile.timing,
-        summary,
-      });
-
-      const recipients = [
-        process.env.ANDRES_NOTIFICATION_PHONE,
-        process.env.RAIZ_NOTIFICATION_PHONE,
-      ]
-        .map(value => String(value || '').trim())
-        .filter(Boolean)
-        .filter((value, index, list) => list.indexOf(value) === index);
-
-      const deliveries = [];
-      for (const recipient of recipients) {
-        deliveries.push(await queueAndSendWhatsApp({
-          leadId: core.leadId,
-          projectId: core.projectId,
-          recipient,
-          text,
-        }));
-      }
-
-      whatsappQueued = deliveries.some(delivery => delivery.queued === true);
-      whatsappSent = deliveries.some(delivery => delivery.sent === true);
-      whatsappCopiesSent = deliveries.filter(delivery => delivery.sent === true).length;
-    }
-
-    const accepted = saved || whatsappSent || crmDelivery.synced === true;
+    // El asistente nunca dispara WhatsApp. Las alertas de WhatsApp quedan reservadas
+    // exclusivamente para compras confirmadas por Stripe en /api/stripe-webhook.
+    const accepted = saved || crmDelivery.synced === true;
     if (!accepted) return res.status(503).json({ error: 'No se pudo procesar la solicitud.' });
 
     return res.status(200).json({
       saved,
       leadId: core.leadId || null,
       notifyEligible,
-      whatsappQueued,
-      whatsappSent,
-      whatsappCopiesSent,
       route,
       userCopySent,
       crmSynced: crmDelivery.synced === true,
