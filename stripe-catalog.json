@@ -5,35 +5,35 @@
   "products": {
     "5-claves-antes-de-competir": {
       "product": "prod_VIWR9d64U3MeHe",
-      "prices": { "digital": "price_1UHvOz1f6JXFxDAPcK6xQBBo" }
+      "prices": { "digital": "price_1UHw8N1f6JXFxDAPtLFIt5xk" }
     },
     "coaching-1-a-1": {
       "product": "prod_VIWSmeR7Ztgzwj",
       "prices": {
-        "online": "price_1UHvPW1f6JXFxDAPOOqxkxAg",
-        "presencial": "price_1UHvPf1f6JXFxDAPvgFYPmD7"
+        "online": "price_1UHw8J1f6JXFxDAPSDZAV2WZ",
+        "presencial": "price_1UHw8Z1f6JXFxDAPZhWGkQB3"
       }
     },
     "bodybuilding-training-system": {
       "product": "prod_VIWSav9VbkmIqp",
-      "prices": { "online": "price_1UHvPN1f6JXFxDAPdUzcpGl8" }
+      "prices": { "online": "price_1UHw8R1f6JXFxDAPiHtNbVan" }
     },
     "posing-coaching": {
       "product": "prod_VIWS9mLaRaL3W9",
-      "prices": { "coaching": "price_1UHvPI1f6JXFxDAPFqCQFnny" }
+      "prices": { "coaching": "price_1UHw8F1f6JXFxDAPxXqvoxiu" }
     },
     "preparacion-competencia": {
       "product": "prod_VIWSOpE624buAs",
-      "prices": { "competition": "price_1UHvPR1f6JXFxDAPzGato5Sa" }
+      "prices": { "competition": "price_1UHw8V1f6JXFxDAP2fXWYxb4" }
     }
   },
   "payment_links": {
-    "5-claves-antes-de-competir": "https://buy.stripe.com/14A9ALfR789Rbl03rmfUQ01",
-    "coaching-1-a-1-online": "https://book.stripe.com/5kQ6oz34l4XF88Od1WfUQ02",
-    "coaching-1-a-1-presencial": "https://book.stripe.com/aFa5kvdIZgGn60G0fafUQ00",
-    "bodybuilding-training-system": "https://book.stripe.com/8x24gr34lgGnbl0d1WfUQ03",
-    "posing-coaching": "https://book.stripe.com/28EaEP7kB89R2Ou5zufUQ04",
-    "preparacion-competencia": "https://book.stripe.com/4gM7sD6gxcq7dt8aTOfUQ05"
+    "5-claves-antes-de-competir": "https://buy.stripe.com/6oU8wHfR70Hp0Gm3rmfUQ06",
+    "coaching-1-a-1-online": "https://book.stripe.com/aFaeV5dIZgGn4WCd1WfUQ0b",
+    "coaching-1-a-1-presencial": "https://book.stripe.com/eVqeV50Wd89Rexc3rmfUQ0a",
+    "bodybuilding-training-system": "https://book.stripe.com/9B6dR19sJeyf4WC0fafUQ08",
+    "posing-coaching": "https://book.stripe.com/14A8wH8oF4XF0Gm8LGfUQ07",
+    "preparacion-competencia": "https://book.stripe.com/dRm7sD8oF61J88O6DyfUQ09"
   },
   "blocked_reason": null
 }
