@@ -49,7 +49,8 @@ async function sendEmail({ to, subject, text, idempotencyKey }) {
 
 function recommendation(profile) {
   const target = `${profile.interest} ${profile.experience} ${profile.modality}`.toLowerCase();
-  if (target.includes('coaching 1 a 1')) return target.includes('presencial') ? 'Coaching 1 a 1 presencial — $10,440 MXN' : target.includes('en línea') || target.includes('online') ? 'Coaching 1 a 1 online — $2,830 MXN' : 'Coaching 1 a 1 — online $2,830 MXN / presencial $10,440 MXN';
+  if (target.includes('trainer presencial')) return 'Trainer Presencial — $10,440 MXN';
+  if (target.includes('coaching 1 a 1')) return 'Coaching 1 a 1 online — $2,830 MXN';
   if (target.includes('bodybuilding')) return 'Bodybuilding Training System — $3,140 MXN';
   if (target.includes('posing coaching')) return 'Posing Coaching | Aburto Team — $2,620 MXN';
   if (target.includes('preparación para competencia')) return 'Preparación para Competencia — $4,180 MXN';

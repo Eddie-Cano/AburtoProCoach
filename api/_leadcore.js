@@ -8,7 +8,7 @@ const CRM_SHEET_TAB = 'Contactos';
 export function isCoachingLead(profile = {}) {
   const modality = String(profile.modality || '').toLowerCase();
   const interest = String(profile.interest || '').toLowerCase();
-  const serviceNames = ['coaching 1 a 1', 'bodybuilding training system', 'posing coaching', 'preparación para competencia'];
+  const serviceNames = ['coaching 1 a 1', 'bodybuilding training system', 'trainer presencial', 'posing coaching', 'preparación para competencia'];
   const isDirect = serviceNames.some(service => interest.includes(service)) || modality.includes('en línea') || modality.includes('online') || modality.includes('presencial');
   const excluded = interest.includes('producto') || interest.includes('posing intensivo') || interest.includes('diario de progreso') || interest.includes('claves antes de competir') || interest.includes('temporizador') || interest.includes('herramienta');
   return isDirect && !excluded;

@@ -7,7 +7,7 @@ Sitio de presentación, tienda de servicios, herramientas y productos digitales.
 - Presentación de Andrés, servicios, método y trayectoria.
 - Guía digital “5 Claves Antes de Competir” publicada a $300 MXN.
 - Posing Intensivo y Diario de Progreso visibles como “Próximamente”.
-- Tienda con Coaching 1 a 1, Bodybuilding Training System, Posing Coaching y Preparación para Competencia.
+- Tienda con Coaching 1 a 1, Bodybuilding Training System, Trainer Presencial, Posing Coaching y Preparación para Competencia.
 - Asistente conversacional con ruta guiada y respuesta generativa mediante Vercel AI Gateway.
 - Resumen de solicitud con copia automática por correo y continuación directa por WhatsApp.
 
