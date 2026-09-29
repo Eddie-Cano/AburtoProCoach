@@ -78,10 +78,12 @@
   "blocked_reason": "Stripe connector lacks product_write/payment_links_write permission for the two new digital products. Website is ready; replace null links after Stripe authorization.",
   "digital_delivery": {
     "provider": "google_drive",
-    "status": "code_ready_requires_vercel_google_service_account",
+    "status": "code_ready_requires_gcp_wif",
     "required_env": [
-      "GOOGLE_SERVICE_ACCOUNT_EMAIL",
-      "GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY",
+      "GCP_PROJECT_NUMBER",
+      "GCP_WORKLOAD_IDENTITY_POOL_ID",
+      "GCP_WORKLOAD_IDENTITY_POOL_PROVIDER_ID",
+      "GCP_SERVICE_ACCOUNT_EMAIL",
       "DRIVE_DELIVERY_REQUIRED=true"
     ],
     "behavior": [
@@ -89,6 +91,7 @@
       "disable download/print/copy for readers via copyRequiresWriterPermission",
       "send branded access email",
       "revoke access after refund or dispute"
-    ]
+    ],
+    "auth": "vercel_oidc_google_workload_identity_federation"
   }
 }
