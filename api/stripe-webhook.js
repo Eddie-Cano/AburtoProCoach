@@ -123,7 +123,8 @@ async function googleAccessToken() {
 
   if (!projectNumber || !poolId || !providerId || !serviceAccountEmail) return null;
 
-  const audience = `//iam.googleapis.com/projects/${projectNumber}/locations/global/workloadIdentityPools/${poolId}/providers/${providerId}`;
+  // The provider's default audience is an HTTPS URL; the OIDC token must match it exactly.
+  const audience = `https://iam.googleapis.com/projects/${projectNumber}/locations/global/workloadIdentityPools/${poolId}/providers/${providerId}`;
 
   const authClient = ExternalAccountClient.fromJSON({
     type: 'external_account',
