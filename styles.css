@@ -128,3 +128,18 @@
 .payment-return span{color:#c9d7cf;font-size:12px}
 @media(max-width:1050px){.store-grid{grid-template-columns:1fr}.store-card:last-child{grid-column:auto;width:100%}}
 @media(max-width:760px){.store-card{display:block}.store-media{min-height:320px;height:320px}.store-copy p{min-height:auto}.payment-return{align-items:flex-start;flex-direction:column;gap:4px}}
+
+/* Colección digital 2026 */
+.editorial-cover{position:relative;display:flex;align-items:stretch;text-decoration:none;overflow:hidden;padding:24px;background:#090909;border-bottom:1px solid #29292d}
+.editorial-cover>div{width:100%;min-height:100%;display:flex;flex-direction:column;justify-content:flex-end;padding:28px;border:1px solid #ffffff24;position:relative;z-index:2}
+.editorial-cover small{font-size:9px;letter-spacing:.2em;font-weight:800;margin-bottom:auto}
+.editorial-cover b,.editorial-cover span{font:900 clamp(42px,5vw,72px)/.8 var(--display);letter-spacing:-.03em}
+.editorial-cover em{font-style:normal;font-size:9px;line-height:1.5;letter-spacing:.12em;font-weight:800;margin-top:18px;max-width:210px}
+.habits-cover{background:radial-gradient(circle at 70% 20%,#7d202a 0,transparent 28%),linear-gradient(145deg,#18181b,#080808 62%)}
+.habits-cover:before{content:'29';position:absolute;right:-18px;bottom:-42px;font:900 190px/.8 var(--display);color:#ffffff08;transform:rotate(-8deg)}
+.habits-cover span{color:var(--red)}
+.prep-cover{background:radial-gradient(circle at 20% 20%,#a2692c55 0,transparent 30%),linear-gradient(145deg,#21170f,#090909 62%)}
+.prep-cover:before{content:'PREP';position:absolute;right:-26px;top:20px;writing-mode:vertical-rl;font:900 86px/.8 var(--display);color:#ffffff08}
+.prep-cover span{color:#d7a264}
+.product-art[href]{transition:transform .25s,border-color .25s}
+.product-card:hover .product-art[href]{transform:scale(1.01)}
