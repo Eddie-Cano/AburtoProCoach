@@ -17,10 +17,8 @@ export default function handler(req, res) {
     stripeWebhookConfigured: Boolean(process.env.STRIPE_WEBHOOK_SECRET),
     buyerEmailConfigured: Boolean(process.env.RESEND_API_KEY && process.env.LEAD_FROM_EMAIL),
     driveDeliveryConfigured: Boolean(
-      (process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY &&
-        (process.env.GCP_SERVICE_ACCOUNT_EMAIL || process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL)) ||
-      (process.env.GCP_PROJECT_NUMBER && process.env.GCP_WORKLOAD_IDENTITY_POOL_ID &&
-        process.env.GCP_WORKLOAD_IDENTITY_POOL_PROVIDER_ID && process.env.GCP_SERVICE_ACCOUNT_EMAIL)
+      process.env.GCP_PROJECT_NUMBER && process.env.GCP_WORKLOAD_IDENTITY_POOL_ID &&
+      process.env.GCP_WORKLOAD_IDENTITY_POOL_PROVIDER_ID && process.env.GCP_SERVICE_ACCOUNT_EMAIL
     ),
     timestamp: new Date().toISOString(),
   });
