@@ -1,4 +1,4 @@
-import { createHmac, timingSafeEqual } from 'node:crypto';
+import { createHmac, createSign, timingSafeEqual } from 'node:crypto';
 import { queueAndSendWhatsApp } from './_leadcore.js';
 
 export const config = { api: { bodyParser: false } };
@@ -7,6 +7,25 @@ const CRM_SHEET_ID = '1yE6PJDnBkKTVX1vNLb0dHByWn7FyqkvIn2Er3IMO1FU';
 const CRM_SHEET_TAB = 'Ventas';
 const SALES_EMAIL = 'raiznoblemx@gmail.com';
 const DEFAULT_RAIZ_PHONE = '522282780491';
+
+const DIGITAL_DELIVERY = {
+  '5-claves': {
+    fileId: '1jaemoMFdRP071LhxvVQybJ2RsoaO8nEx',
+    url: 'https://drive.google.com/file/d/1jaemoMFdRP071LhxvVQybJ2RsoaO8nEx/view',
+  },
+  '5-claves-antes-de-competir': {
+    fileId: '1jaemoMFdRP071LhxvVQybJ2RsoaO8nEx',
+    url: 'https://drive.google.com/file/d/1jaemoMFdRP071LhxvVQybJ2RsoaO8nEx/view',
+  },
+  '5-habitos-dia-29': {
+    fileId: '1Nh14AYtgo22X8_v6WoCxCP2mk5VbNvHm',
+    url: 'https://drive.google.com/file/d/1Nh14AYtgo22X8_v6WoCxCP2mk5VbNvHm/view',
+  },
+  'romantizar-la-prep': {
+    fileId: '1XU6KOeaVOpWJsiUnV7iS7RGQ-c48Wa8n',
+    url: 'https://drive.google.com/file/d/1XU6KOeaVOpWJsiUnV7iS7RGQ-c48Wa8n/view',
+  },
+};
 
 const PRODUCT_NAMES = {
   '5-claves': '5 Claves Antes de Competir',
@@ -71,25 +90,172 @@ async function redis(...command) {
   return data.result;
 }
 
-async function sendEmail({ subject, text, eventId }) {
+async function sendEmail({ subject, text, html, eventId, to = [SALES_EMAIL], idempotencyPrefix = 'aburto-sale' }) {
   if (!process.env.RESEND_API_KEY) return { sent: false, reason: 'resend_not_configured' };
   const response = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
       'Content-Type': 'application/json',
-      'Idempotency-Key': `aburto-sale-${eventId}`,
+      'Idempotency-Key': `${idempotencyPrefix}-${eventId}`,
     },
     body: JSON.stringify({
       from: process.env.LEAD_FROM_EMAIL || 'Aburto Pro Coach <onboarding@resend.dev>',
-      to: [SALES_EMAIL],
+      to,
       subject,
       text,
+      ...(html ? { html } : {}),
     }),
     signal: AbortSignal.timeout(8000),
   });
   if (!response.ok) throw new Error('email failed');
   return { sent: true };
+}
+
+
+function base64url(value) {
+  return Buffer.from(value).toString('base64url');
+}
+
+async function googleAccessToken() {
+  const email = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL || '';
+  const privateKey = String(process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY || '').replace(/\\n/g, '\n');
+  if (!email || !privateKey) return null;
+
+  const now = Math.floor(Date.now() / 1000);
+  const header = base64url(JSON.stringify({ alg: 'RS256', typ: 'JWT' }));
+  const payload = base64url(JSON.stringify({
+    iss: email,
+    scope: 'https://www.googleapis.com/auth/drive',
+    aud: 'https://oauth2.googleapis.com/token',
+    iat: now,
+    exp: now + 3600,
+  }));
+  const unsigned = `${header}.${payload}`;
+  const signer = createSign('RSA-SHA256');
+  signer.update(unsigned);
+  signer.end();
+  const assertion = `${unsigned}.${signer.sign(privateKey).toString('base64url')}`;
+
+  const response = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+      assertion,
+    }),
+    signal: AbortSignal.timeout(8000),
+  });
+  if (!response.ok) throw new Error('google oauth failed');
+  const data = await response.json();
+  return data.access_token || null;
+}
+
+async function driveApi(path, { method = 'GET', body } = {}) {
+  const token = await googleAccessToken();
+  if (!token) return { configured: false };
+  const response = await fetch(`https://www.googleapis.com/drive/v3${path}`, {
+    method,
+    headers: {
+      Authorization: `Bearer ${token}`,
+      ...(body ? { 'Content-Type': 'application/json' } : {}),
+    },
+    ...(body ? { body: JSON.stringify(body) } : {}),
+    signal: AbortSignal.timeout(10000),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(`drive api ${response.status}: ${data?.error?.message || 'request failed'}`);
+  return { configured: true, data };
+}
+
+async function grantDigitalAccess({ slug, email, paymentIntentId }) {
+  const product = DIGITAL_DELIVERY[slug];
+  if (!product) return { applicable: false, granted: false };
+  if (!email) return { applicable: true, granted: false, reason: 'missing_customer_email' };
+
+  const protection = await driveApi(
+    `/files/${product.fileId}?supportsAllDrives=true&fields=id,copyRequiresWriterPermission`,
+    { method: 'PATCH', body: { copyRequiresWriterPermission: true } }
+  );
+  if (protection.configured === false) {
+    return { applicable: true, granted: false, reason: 'google_drive_not_configured' };
+  }
+
+  const permission = await driveApi(
+    `/files/${product.fileId}/permissions?supportsAllDrives=true&sendNotificationEmail=false&fields=id,emailAddress,role,type`,
+    {
+      method: 'POST',
+      body: { type: 'user', role: 'reader', emailAddress: email },
+    }
+  );
+
+  const permissionId = permission.data?.id || '';
+  if (paymentIntentId && permissionId) {
+    await redis('SET', `aburto:drive-grant:${paymentIntentId}`, JSON.stringify({
+      fileId: product.fileId,
+      permissionId,
+      email,
+      slug,
+    }), 'EX', 31536000);
+  }
+
+  return {
+    applicable: true,
+    granted: true,
+    fileId: product.fileId,
+    fileUrl: product.url,
+    permissionId,
+  };
+}
+
+async function revokeDigitalAccess(paymentIntentId) {
+  if (!paymentIntentId) return { revoked: false, reason: 'missing_payment_intent' };
+  const raw = await redis('GET', `aburto:drive-grant:${paymentIntentId}`);
+  if (!raw) return { revoked: false, reason: 'grant_not_found' };
+  const grant = JSON.parse(raw);
+  const result = await driveApi(
+    `/files/${grant.fileId}/permissions/${grant.permissionId}?supportsAllDrives=true`,
+    { method: 'DELETE' }
+  );
+  if (result.configured === false) return { revoked: false, reason: 'google_drive_not_configured' };
+  await redis('DEL', `aburto:drive-grant:${paymentIntentId}`);
+  return { revoked: true, email: grant.email, slug: grant.slug };
+}
+
+async function sendDigitalDeliveryEmail({ sale, delivery, eventId }) {
+  if (!delivery?.granted || !sale.email) {
+    return { sent: false, reason: delivery?.reason || 'delivery_not_granted' };
+  }
+  const text = [
+    `Hola${sale.name ? ` ${sale.name}` : ''},`,
+    '',
+    `Tu compra de ${sale.productName} fue confirmada correctamente.`,
+    '',
+    'Tu acceso está asociado al mismo correo utilizado durante la compra.',
+    `Abrir producto: ${delivery.fileUrl}`,
+    '',
+    'El material es de uso personal. No reenvíes el acceso a terceros.',
+    '',
+    'Aburto Pro Coach',
+  ].join('\n');
+
+  const html = `
+    <div style="font-family:Arial,sans-serif;max-width:620px;margin:auto;line-height:1.55;color:#111">
+      <h2>Tu producto ya está disponible</h2>
+      <p>Hola${sale.name ? ` ${sale.name}` : ''}, tu compra de <strong>${sale.productName}</strong> fue confirmada correctamente.</p>
+      <p>El acceso fue concedido exclusivamente al correo utilizado durante la compra.</p>
+      <p style="margin:28px 0"><a href="${delivery.fileUrl}" style="background:#111;color:#fff;text-decoration:none;padding:14px 20px;border-radius:8px;display:inline-block">ACCEDER A MI PRODUCTO</a></p>
+      <p style="font-size:13px;color:#666">Material de uso personal. El enlace requiere la cuenta de Google autorizada.</p>
+    </div>`;
+
+  return sendEmail({
+    subject: `Tu acceso: ${sale.productName}`,
+    text,
+    html,
+    eventId,
+    to: [sale.email],
+    idempotencyPrefix: 'aburto-delivery',
+  });
 }
 
 async function syncSaleToCrm(sale) {
@@ -174,6 +340,16 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Webhook inválido.' });
   }
 
+  if (['charge.refunded', 'charge.dispute.created'].includes(event.type)) {
+    const paymentIntentId = String(event?.data?.object?.payment_intent || '');
+    try {
+      const revoked = await revokeDigitalAccess(paymentIntentId);
+      return res.status(200).json({ received: true, accessRevocation: revoked });
+    } catch {
+      return res.status(503).json({ error: 'No se pudo revocar el acceso digital.' });
+    }
+  }
+
   if (!['checkout.session.completed', 'checkout.session.async_payment_succeeded'].includes(event.type)) {
     return res.status(200).json({ received: true, ignored: true });
   }
@@ -207,7 +383,7 @@ export default async function handler(req, res) {
     paymentIntentId: String(session.payment_intent || ''),
     productSlug: slug,
     productName: PRODUCT_NAMES[slug] || slug,
-    kind: String(session.metadata?.kind || 'service'),
+    kind: DIGITAL_DELIVERY[slug] ? 'digital' : String(session.metadata?.kind || 'service'),
     name: String(session.customer_details?.name || session.customer_details?.individual_name || ''),
     email: String(session.customer_details?.email || session.customer_email || ''),
     phone: String(session.customer_details?.phone || ''),
@@ -217,9 +393,25 @@ export default async function handler(req, res) {
     createdAt: new Date(Number(session.created || Math.floor(Date.now()/1000)) * 1000).toISOString(),
     whatsappStatus: 'Pendiente',
     emailStatus: 'Pendiente',
+    deliveryStatus: DIGITAL_DELIVERY[slug] ? 'Pendiente' : 'No aplica',
   };
 
   try {
+    let delivery = { applicable: false, granted: false };
+    let customerEmail = { sent: true, reason: 'not_applicable' };
+    if (DIGITAL_DELIVERY[slug]) {
+      delivery = await grantDigitalAccess({
+        slug,
+        email: sale.email,
+        paymentIntentId: sale.paymentIntentId,
+      });
+      sale.deliveryStatus = delivery.granted ? 'Drive concedido' : `Pendiente: ${delivery.reason || 'no concedido'}`;
+      if (delivery.granted) {
+        customerEmail = await sendDigitalDeliveryEmail({ sale, delivery, eventId: event.id });
+        sale.deliveryStatus = customerEmail.sent ? 'Drive + correo enviados' : `Drive concedido; correo pendiente: ${customerEmail.reason || 'no enviado'}`;
+      }
+    }
+
     const whatsapp = await queueAndSendWhatsApp({
       recipient: process.env.RAIZ_NOTIFICATION_PHONE || DEFAULT_RAIZ_PHONE,
       text: saleMessage(sale),
@@ -241,6 +433,7 @@ export default async function handler(req, res) {
       `Checkout Session: ${sale.checkoutSessionId}`,
       `Payment Link: ${sale.paymentLinkId || 'No disponible'}`,
       `Payment Intent: ${sale.paymentIntentId || 'No disponible'}`,
+      `Entrega digital: ${sale.deliveryStatus}`,
     ].join('\n');
 
     const email = await sendEmail({
@@ -252,13 +445,17 @@ export default async function handler(req, res) {
 
     const crm = await syncSaleToCrm(sale);
 
-    if (!whatsapp.sent || !email.sent || !crm.synced) {
+    const deliveryRequired = DIGITAL_DELIVERY[slug] && process.env.DRIVE_DELIVERY_REQUIRED === 'true';
+    const deliveryComplete = !deliveryRequired || (delivery.granted && customerEmail.sent);
+
+    if (!whatsapp.sent || !email.sent || !crm.synced || !deliveryComplete) {
       try { await redis('DEL', eventKey); } catch {}
       return res.status(503).json({
         error: 'Venta confirmada, pero falta completar una o más entregas.',
         whatsapp: sale.whatsappStatus,
         email: sale.emailStatus,
         crm: crm.synced ? 'Sincronizado' : crm.reason,
+        delivery: sale.deliveryStatus,
       });
     }
 
