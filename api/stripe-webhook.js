@@ -1,4 +1,6 @@
-import { createHmac, createSign, timingSafeEqual } from 'node:crypto';
+import { createHmac, timingSafeEqual } from 'node:crypto';
+import { getVercelOidcToken } from '@vercel/oidc';
+import { ExternalAccountClient } from 'google-auth-library';
 import { queueAndSendWhatsApp } from './_leadcore.js';
 
 export const config = { api: { bodyParser: false } };
@@ -113,42 +115,31 @@ async function sendEmail({ subject, text, html, eventId, to = [SALES_EMAIL], ide
 }
 
 
-function base64url(value) {
-  return Buffer.from(value).toString('base64url');
-}
-
 async function googleAccessToken() {
-  const email = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL || '';
-  const privateKey = String(process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY || '').replace(/\\n/g, '\n');
-  if (!email || !privateKey) return null;
+  const projectNumber = process.env.GCP_PROJECT_NUMBER || '';
+  const poolId = process.env.GCP_WORKLOAD_IDENTITY_POOL_ID || '';
+  const providerId = process.env.GCP_WORKLOAD_IDENTITY_POOL_PROVIDER_ID || '';
+  const serviceAccountEmail = process.env.GCP_SERVICE_ACCOUNT_EMAIL || process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL || '';
 
-  const now = Math.floor(Date.now() / 1000);
-  const header = base64url(JSON.stringify({ alg: 'RS256', typ: 'JWT' }));
-  const payload = base64url(JSON.stringify({
-    iss: email,
-    scope: 'https://www.googleapis.com/auth/drive',
-    aud: 'https://oauth2.googleapis.com/token',
-    iat: now,
-    exp: now + 3600,
-  }));
-  const unsigned = `${header}.${payload}`;
-  const signer = createSign('RSA-SHA256');
-  signer.update(unsigned);
-  signer.end();
-  const assertion = `${unsigned}.${signer.sign(privateKey).toString('base64url')}`;
+  if (!projectNumber || !poolId || !providerId || !serviceAccountEmail) return null;
 
-  const response = await fetch('https://oauth2.googleapis.com/token', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({
-      grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
-      assertion,
-    }),
-    signal: AbortSignal.timeout(8000),
+  const audience = `//iam.googleapis.com/projects/${projectNumber}/locations/global/workloadIdentityPools/${poolId}/providers/${providerId}`;
+
+  const authClient = ExternalAccountClient.fromJSON({
+    type: 'external_account',
+    audience,
+    subject_token_type: 'urn:ietf:params:oauth:token-type:jwt',
+    token_url: 'https://sts.googleapis.com/v1/token',
+    service_account_impersonation_url:
+      `https://iamcredentials.googleapis.com/v1/projects/-/serviceAccounts/${serviceAccountEmail}:generateAccessToken`,
+    subject_token_supplier: {
+      getSubjectToken: () => getVercelOidcToken({ audience }),
+    },
   });
-  if (!response.ok) throw new Error('google oauth failed');
-  const data = await response.json();
-  return data.access_token || null;
+
+  const headers = await authClient.getRequestHeaders();
+  const auth = headers.get ? headers.get('authorization') : headers.Authorization || headers.authorization;
+  return String(auth || '').replace(/^Bearer\s+/i, '') || null;
 }
 
 async function driveApi(path, { method = 'GET', body } = {}) {
