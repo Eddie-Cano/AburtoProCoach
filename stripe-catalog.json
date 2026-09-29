@@ -5,7 +5,9 @@
   "products": {
     "5-claves-antes-de-competir": {
       "product": "prod_VIWR9d64U3MeHe",
-      "prices": { "digital": "price_1UHw8N1f6JXFxDAPtLFIt5xk" }
+      "prices": {
+        "digital": "price_1UHw8N1f6JXFxDAPtLFIt5xk"
+      }
     },
     "coaching-1-a-1": {
       "product": "prod_VIWSmeR7Ztgzwj",
@@ -16,15 +18,33 @@
     },
     "bodybuilding-training-system": {
       "product": "prod_VIWSav9VbkmIqp",
-      "prices": { "online": "price_1UHw8R1f6JXFxDAPiHtNbVan" }
+      "prices": {
+        "online": "price_1UHw8R1f6JXFxDAPiHtNbVan"
+      }
     },
     "posing-coaching": {
       "product": "prod_VIWS9mLaRaL3W9",
-      "prices": { "coaching": "price_1UHw8F1f6JXFxDAPxXqvoxiu" }
+      "prices": {
+        "coaching": "price_1UHw8F1f6JXFxDAPxXqvoxiu"
+      }
     },
     "preparacion-competencia": {
       "product": "prod_VIWSOpE624buAs",
-      "prices": { "competition": "price_1UHw8V1f6JXFxDAP2fXWYxb4" }
+      "prices": {
+        "competition": "price_1UHw8V1f6JXFxDAP2fXWYxb4"
+      }
+    },
+    "5-habitos-dia-29": {
+      "status": "pending_stripe_permission",
+      "target_charge_mxn": 526,
+      "target_net_mxn": 500,
+      "landing": "/productos/5-habitos.html"
+    },
+    "romantizar-la-prep": {
+      "status": "pending_stripe_permission",
+      "target_charge_mxn": 526,
+      "target_net_mxn": 500,
+      "landing": "/productos/romantizar-la-prep.html"
     }
   },
   "payment_links": {
@@ -33,7 +53,9 @@
     "coaching-1-a-1-presencial": "https://book.stripe.com/eVqeV50Wd89Rexc3rmfUQ0a",
     "bodybuilding-training-system": "https://book.stripe.com/9B6dR19sJeyf4WC0fafUQ08",
     "posing-coaching": "https://book.stripe.com/14A8wH8oF4XF0Gm8LGfUQ07",
-    "preparacion-competencia": "https://book.stripe.com/dRm7sD8oF61J88O6DyfUQ09"
+    "preparacion-competencia": "https://book.stripe.com/dRm7sD8oF61J88O6DyfUQ09",
+    "5-habitos-dia-29": null,
+    "romantizar-la-prep": null
   },
-  "blocked_reason": null
+  "blocked_reason": "Stripe connector lacks product_write/payment_links_write permission for the two new digital products. Website is ready; replace null links after Stripe authorization."
 }
