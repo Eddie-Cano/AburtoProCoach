@@ -7,6 +7,12 @@
       "product": "prod_VIWR9d64U3MeHe",
       "prices": {
         "digital": "price_1UHw8N1f6JXFxDAPtLFIt5xk"
+      },
+      "delivery": {
+        "drive_file_id": "1jaemoMFdRP071LhxvVQybJ2RsoaO8nEx",
+        "mode": "private_reader_share",
+        "disable_download_print_copy": true,
+        "revoke_on_refund_or_dispute": true
       }
     },
     "coaching-1-a-1": {
@@ -38,13 +44,25 @@
       "status": "pending_stripe_permission",
       "target_charge_mxn": 526,
       "target_net_mxn": 500,
-      "landing": "/productos/5-habitos.html"
+      "landing": "/productos/5-habitos.html",
+      "delivery": {
+        "drive_file_id": "1Nh14AYtgo22X8_v6WoCxCP2mk5VbNvHm",
+        "mode": "private_reader_share",
+        "disable_download_print_copy": true,
+        "revoke_on_refund_or_dispute": true
+      }
     },
     "romantizar-la-prep": {
       "status": "pending_stripe_permission",
       "target_charge_mxn": 526,
       "target_net_mxn": 500,
-      "landing": "/productos/romantizar-la-prep.html"
+      "landing": "/productos/romantizar-la-prep.html",
+      "delivery": {
+        "drive_file_id": "1XU6KOeaVOpWJsiUnV7iS7RGQ-c48Wa8n",
+        "mode": "private_reader_share",
+        "disable_download_print_copy": true,
+        "revoke_on_refund_or_dispute": true
+      }
     }
   },
   "payment_links": {
@@ -57,5 +75,20 @@
     "5-habitos-dia-29": null,
     "romantizar-la-prep": null
   },
-  "blocked_reason": "Stripe connector lacks product_write/payment_links_write permission for the two new digital products. Website is ready; replace null links after Stripe authorization."
+  "blocked_reason": "Stripe connector lacks product_write/payment_links_write permission for the two new digital products. Website is ready; replace null links after Stripe authorization.",
+  "digital_delivery": {
+    "provider": "google_drive",
+    "status": "code_ready_requires_vercel_google_service_account",
+    "required_env": [
+      "GOOGLE_SERVICE_ACCOUNT_EMAIL",
+      "GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY",
+      "DRIVE_DELIVERY_REQUIRED=true"
+    ],
+    "behavior": [
+      "grant reader access to checkout email after paid Stripe session",
+      "disable download/print/copy for readers via copyRequiresWriterPermission",
+      "send branded access email",
+      "revoke access after refund or dispute"
+    ]
+  }
 }
