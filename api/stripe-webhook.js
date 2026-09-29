@@ -1,6 +1,6 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { getVercelOidcToken } from '@vercel/oidc';
-import { ExternalAccountClient } from 'google-auth-library';
+import { ExternalAccountClient, JWT } from 'google-auth-library';
 import { queueAndSendWhatsApp } from './_leadcore.js';
 
 export const config = { api: { bodyParser: false } };
@@ -120,6 +120,18 @@ async function googleAccessToken() {
   const poolId = process.env.GCP_WORKLOAD_IDENTITY_POOL_ID || '';
   const providerId = process.env.GCP_WORKLOAD_IDENTITY_POOL_PROVIDER_ID || '';
   const serviceAccountEmail = process.env.GCP_SERVICE_ACCOUNT_EMAIL || process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL || '';
+  const privateKey = (process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY || '').replace(/\\n/g, '\n');
+
+  // Keep the JSON-key setup usable while a keyless Vercel OIDC provider is being configured.
+  if (serviceAccountEmail.endsWith('.iam.gserviceaccount.com') && privateKey.includes('BEGIN PRIVATE KEY')) {
+    const client = new JWT({
+      email: serviceAccountEmail,
+      key: privateKey,
+      scopes: ['https://www.googleapis.com/auth/drive'],
+    });
+    const { token } = await client.getAccessToken();
+    return token || null;
+  }
 
   if (!projectNumber || !poolId || !providerId || !serviceAccountEmail) return null;
 
@@ -353,6 +365,11 @@ export default async function handler(req, res) {
     return res.status(200).json({ received: true, pending: true });
   }
 
+  const slug = String(session.metadata?.product_slug || 'venta');
+  if (DIGITAL_DELIVERY[slug] && (!process.env.UPSTASH_REDIS_REST_URL || !process.env.UPSTASH_REDIS_REST_TOKEN)) {
+    return res.status(503).json({ error: 'El registro de acceso digital no está configurado.' });
+  }
+
   const eventKey = `aburto:stripe-event:${event.id}`;
   try {
     const existing = await redis('GET', eventKey);
@@ -365,7 +382,6 @@ export default async function handler(req, res) {
     return res.status(503).json({ error: 'No se pudo asegurar la deduplicación.' });
   }
 
-  const slug = String(session.metadata?.product_slug || 'venta');
   const sale = {
     saleId: `SALE-${String(session.id || event.id).replace(/^cs_/, '').slice(0, 18)}`,
     eventId: String(event.id || ''),
