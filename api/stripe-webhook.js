@@ -123,7 +123,8 @@ async function googleAccessToken() {
 
   if (!projectNumber || !poolId || !providerId || !serviceAccountEmail) return null;
 
-  const audience = `//iam.googleapis.com/projects/${projectNumber}/locations/global/workloadIdentityPools/${poolId}/providers/${providerId}`;
+  // The provider's default audience is an HTTPS URL; the OIDC token must match it exactly.
+  const audience = `https://iam.googleapis.com/projects/${projectNumber}/locations/global/workloadIdentityPools/${poolId}/providers/${providerId}`;
 
   const authClient = ExternalAccountClient.fromJSON({
     type: 'external_account',
@@ -353,6 +354,11 @@ export default async function handler(req, res) {
     return res.status(200).json({ received: true, pending: true });
   }
 
+  const slug = String(session.metadata?.product_slug || 'venta');
+  if (DIGITAL_DELIVERY[slug] && (!process.env.UPSTASH_REDIS_REST_URL || !process.env.UPSTASH_REDIS_REST_TOKEN)) {
+    return res.status(503).json({ error: 'El registro de acceso digital no está configurado.' });
+  }
+
   const eventKey = `aburto:stripe-event:${event.id}`;
   try {
     const existing = await redis('GET', eventKey);
@@ -365,7 +371,6 @@ export default async function handler(req, res) {
     return res.status(503).json({ error: 'No se pudo asegurar la deduplicación.' });
   }
 
-  const slug = String(session.metadata?.product_slug || 'venta');
   const sale = {
     saleId: `SALE-${String(session.id || event.id).replace(/^cs_/, '').slice(0, 18)}`,
     eventId: String(event.id || ''),
