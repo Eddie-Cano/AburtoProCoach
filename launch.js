@@ -14,7 +14,7 @@
     text('[data-pack-price]', money(data.price));
     text('[data-pack-discount]', `${data.discountPercent}%${data.stage === 'regular' ? ' aprox.' : ''} de descuento`);
     const status = !data.configured ? 'Lanzamiento en preparación. La fecha de apertura se anunciará aquí.'
-      : data.stage === 'scheduled' ? 'Apertura próxima. Las 72 horas comienzan en la fecha oficial del lanzamiento.'
+      : data.stage === 'scheduled' ? 'Apertura próxima. La ventana de lanzamiento comienza en la fecha oficial.'
       : data.stage === 'reserved' ? 'Los lugares disponibles están en proceso de pago. Vuelve a consultar en unos minutos.'
       : data.stage === 'regular' ? 'La edición Founding 100 ha cerrado. El Starter Pack continúa por $1,050 MXN.'
       : `${data.remaining} lugares disponibles · ${data.confirmed} miembros confirmados de 100.`;
@@ -35,7 +35,7 @@
   }
   function tick() {
     if (!offer) return;
-    if (!offer.configured || offer.stage === 'scheduled') return text('[data-launch-clock]', '72 h');
+    if (!offer.configured || offer.stage === 'scheduled') return text('[data-launch-clock]', 'Apertura');
     if (offer.stage === 'regular') return text('[data-launch-clock]', 'Cerrado');
     const seconds = Math.max(0, Math.floor((Date.parse(offer.endsAt) - Date.now() - serverOffset) / 1000));
     const hours = Math.floor(seconds / 3600), minutes = Math.floor(seconds % 3600 / 60);
