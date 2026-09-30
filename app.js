@@ -8,7 +8,7 @@ const serviceDescriptions={
   'Preparación para Competencia':'preparación y seguimiento competitivo por $4,180 MXN'
 };
 const leadRouting={email:'raiznoblemx@gmail.com',whatsapp:'522282780491',whatsappDisplay:'+52 228 278 0491'};
-const emptyProfile=()=>({interest:'',experience:'',modality:'',timing:'',name:'',contact:''});
+const emptyProfile=()=>({interest:'',experience:'',modality:'',timing:'',name:'',phone:'',email:'',needs:'',contact:''});
 const state={step:0,profile:emptyProfile(),history:[]};
 let lastCapturedLead='',lastCaptureResult=null;
 const flow=[
@@ -17,26 +17,29 @@ const flow=[
   {key:'modality',question:'¿Qué modalidad te interesa explorar?',options:['En línea','Presencial','Producto digital','Quiero comparar opciones']},
   {key:'timing',question:'¿En qué momento te gustaría comenzar?',options:['Lo antes posible','Este mes','En 1 a 3 meses','Sólo estoy explorando']},
   {key:'name',question:'Perfecto. ¿Cómo te llamas?',options:[]},
-  {key:'contact',question:'Último paso: escribe tu WhatsApp o correo para identificar tu solicitud. Si eliges coaching en línea o presencial, el equipo recibirá tu registro para atención directa. No compartas datos médicos sensibles aquí.',options:[]}
+  {key:'phone',question:'¿Cuál es tu número de WhatsApp con lada?',options:[]},
+  {key:'email',question:'¿Cuál es tu correo electrónico?',options:[]},
+  {key:'needs',question:'Por último, cuéntame qué necesitas saber o qué estás buscando para que el equipo pueda darte seguimiento.',options:[]}
 ];
 const chatLog=$('#chatLog'),quickReplies=$('#quickReplies'),chatForm=$('#chatForm'),chatInput=$('#chatInput');
 function addMessage(text,who='bot',extraClass=''){const message=document.createElement('div');message.className=`message ${who} ${extraClass}`.trim();message.textContent=text;chatLog.appendChild(message);chatLog.scrollTop=chatLog.scrollHeight;if(!extraClass)state.history.push({role:who==='bot'?'assistant':'user',content:text});return message}
 function setReplies(options=[]){quickReplies.replaceChildren();options.forEach(option=>{const button=document.createElement('button');button.type='button';button.textContent=option;button.addEventListener('click',()=>answer(option));quickReplies.appendChild(button)})}
 function askCurrent(){if(state.step>=flow.length)return finishQualification();const current=flow[state.step];setTimeout(()=>{addMessage(current.question);setReplies(current.options);chatInput.placeholder=current.options.length?'O elige una respuesta…':'Escribe aquí…';chatInput.focus({preventScroll:true})},260)}
-function answer(value){const clean=String(value).trim().slice(0,500);if(!clean)return;addMessage(clean,'user');setReplies([]);if(state.profile.interest==='Productos digitales'&&state.step===1&&productDescriptions[clean]){state.profile.interest=clean;addMessage(`Perfecto. ${clean} es ${productDescriptions[clean]}.`);askCurrent();return}const current=flow[state.step];state.profile[current.key]=clean;state.step+=1;if(current.key==='interest'&&clean==='Productos digitales'){addMessage('La biblioteca incluye el Starter Pack (consulta Founding 100 en su página), además de “5 Claves Antes de Competir” por $320 MXN, “El Día 29” por $526 MXN y “Romantizar la Prep” por $526 MXN.');setReplies(Object.keys(productDescriptions));return}if(current.key==='interest'&&serviceDescriptions[clean])addMessage(`Perfecto. ${clean} es ${serviceDescriptions[clean]}.`);askCurrent()}
+function answer(value){const clean=String(value).trim().slice(0,500);if(!clean)return;addMessage(clean,'user');setReplies([]);if(state.profile.interest==='Productos digitales'&&state.step===1&&productDescriptions[clean]){state.profile.interest=clean;addMessage(`Perfecto. ${clean} es ${productDescriptions[clean]}.`);askCurrent();return}const current=flow[state.step];state.profile[current.key]=clean;if(current.key==='phone'||current.key==='email')state.profile.contact=[state.profile.phone,state.profile.email].filter(Boolean).join(' · ');state.step+=1;if(current.key==='interest'&&clean==='Productos digitales'){addMessage('La biblioteca incluye el Starter Pack (consulta Founding 100 en su página), además de “5 Claves Antes de Competir” por $320 MXN, “El Día 29” por $526 MXN y “Romantizar la Prep” por $526 MXN.');setReplies(Object.keys(productDescriptions));return}if(current.key==='interest'&&serviceDescriptions[clean])addMessage(`Perfecto. ${clean} es ${serviceDescriptions[clean]}.`);askCurrent()}
 function recommendation(){const p=state.profile,target=`${p.interest} ${p.experience} ${p.modality}`.toLowerCase();if(target.includes('starter pack')||target.includes('founding'))return'Starter Pack — consulta precio y disponibilidad en Founding 100';if(target.includes('trainer presencial'))return'Trainer Presencial — $10,440 MXN';if(target.includes('coaching 1 a 1'))return'Coaching 1 a 1 online — $2,830 MXN';if(target.includes('bodybuilding'))return'Bodybuilding Training System — $3,140 MXN';if(target.includes('posing coaching'))return'Posing Coaching | Aburto Team — $2,620 MXN';if(target.includes('preparación para competencia'))return'Preparación para Competencia — $4,180 MXN';if(target.includes('5 claves'))return'5 Claves Antes de Competir — $320 MXN';if(target.includes('día 29')||target.includes('5 hábitos'))return'El Día 29 — $526 MXN';if(target.includes('romantizar'))return'Romantizar la Prep — $526 MXN';return'Conversación inicial para definir la mejor ruta'}
-async function captureLead(){const fingerprint=JSON.stringify(state.profile);if(fingerprint===lastCapturedLead&&lastCaptureResult)return lastCaptureResult;lastCapturedLead=fingerprint;try{const response=await fetch('/api/lead',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(state.profile)});const data=await response.json().catch(()=>({}));lastCaptureResult={ok:response.ok,saved:data.saved===true,notifyEligible:data.notifyEligible===true,error:data.error||''};return lastCaptureResult}catch{lastCaptureResult={ok:false,saved:false,notifyEligible:false,error:'No se pudo conectar con el servidor.'};return lastCaptureResult}}
-function leadSummary(){const p=state.profile;return`Hola Andrés, soy ${p.name||'visitante del sitio'}.
+async function captureLead(){const fingerprint=JSON.stringify(state.profile);if(fingerprint===lastCapturedLead&&lastCaptureResult)return lastCaptureResult;lastCapturedLead=fingerprint;try{const response=await fetch('/api/lead',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(state.profile)});const data=await response.json().catch(()=>({}));lastCaptureResult={ok:response.ok,saved:data.saved===true,notifyEligible:data.notifyEligible===true,crmSynced:data.crmSynced===true,whatsappSent:data.whatsappSent===true,whatsappConfigured:data.whatsappConfigured===true,error:data.error||''};return lastCaptureResult}catch{lastCaptureResult={ok:false,saved:false,notifyEligible:false,error:'No se pudo conectar con el servidor.'};return lastCaptureResult}}
+function leadSummary(){const p=state.profile;return`Nueva consulta de disponibilidad — Aburto Pro Coach
 
+Nombre: ${p.name||'Por confirmar'}
+WhatsApp: ${p.phone||'Por confirmar'}
+Correo: ${p.email||'Por confirmar'}
 Interés: ${p.interest||'Por definir'}
 Experiencia: ${p.experience||'Por definir'}
 Modalidad: ${p.modality||'Por definir'}
 Momento para comenzar: ${p.timing||'Por definir'}
-Contacto: ${p.contact||'Por confirmar'}
-Ruta sugerida por el asistente: ${recommendation()}
-
-Me gustaría conocer el alcance, disponibilidad y precio antes de comenzar.`}
-async function finishQualification(){const delivery=await captureLead();const direct=delivery.notifyEligible===true;addMessage(`Gracias, ${state.profile.name||'listo'}. Por lo que me compartiste, el siguiente paso sugerido es: ${recommendation()}.\n\n${direct?'Tu solicitud de coaching quedó registrada para atención directa con Andrés.':'Tu interés quedó registrado correctamente.'}`);const box=document.createElement('div');box.className='summary';const title=document.createElement('strong');title.textContent='RESUMEN DE TU SOLICITUD';const pre=document.createElement('pre');pre.textContent=leadSummary();const deliveryStatus=document.createElement('p');deliveryStatus.className='delivery-status';if(direct){deliveryStatus.textContent='Tu solicitud quedó registrada para seguimiento. El asistente no envía avisos por WhatsApp.'}else{deliveryStatus.textContent='Tu interés quedó registrado. Las alertas operativas se generan únicamente cuando Stripe confirma una compra.'}const actions=document.createElement('div');actions.className='summary-actions';const copy=document.createElement('button');copy.type='button';copy.textContent='Copiar resumen';copy.addEventListener('click',async()=>{try{await navigator.clipboard.writeText(leadSummary());showToast('Resumen copiado')}catch{showToast('Selecciona y copia el resumen manualmente')}});actions.append(copy);box.append(title,pre,deliveryStatus,actions);chatLog.appendChild(box);chatLog.scrollTop=chatLog.scrollHeight;setReplies([]);const again=document.createElement('button');again.type='button';again.textContent='Hacer otra consulta';again.addEventListener('click',resetChat);quickReplies.appendChild(again);chatInput.placeholder='También puedes hacer una pregunta libre…'}
+Qué busca / necesita saber: ${p.needs||'Por definir'}
+Ruta sugerida por el asistente: ${recommendation()}`}
+async function finishQualification(){const delivery=await captureLead();const direct=delivery.notifyEligible===true;addMessage(`Gracias, ${state.profile.name||'listo'}. Por lo que me compartiste, el siguiente paso sugerido es: ${recommendation()}.\n\n${direct?'Tu solicitud de coaching quedó registrada para atención directa con Andrés.':'Tu interés quedó registrado correctamente.'}`);const box=document.createElement('div');box.className='summary';const title=document.createElement('strong');title.textContent='RESUMEN DE TU SOLICITUD';const pre=document.createElement('pre');pre.textContent=leadSummary();const deliveryStatus=document.createElement('p');deliveryStatus.className='delivery-status';if(direct){deliveryStatus.textContent=delivery.whatsappSent?'Tu solicitud quedó registrada y el equipo recibió el aviso por WhatsApp.':'Tu solicitud quedó registrada para seguimiento.'}else{deliveryStatus.textContent='Tu interés quedó registrado para seguimiento.'}const actions=document.createElement('div');actions.className='summary-actions';const copy=document.createElement('button');copy.type='button';copy.textContent='Copiar resumen';copy.addEventListener('click',async()=>{try{await navigator.clipboard.writeText(leadSummary());showToast('Resumen copiado')}catch{showToast('Selecciona y copia el resumen manualmente')}});actions.append(copy);box.append(title,pre,deliveryStatus,actions);chatLog.appendChild(box);chatLog.scrollTop=chatLog.scrollHeight;setReplies([]);const again=document.createElement('button');again.type='button';again.textContent='Hacer otra consulta';again.addEventListener('click',resetChat);quickReplies.appendChild(again);chatInput.placeholder='También puedes hacer una pregunta libre…'}
 async function askAI(text){addMessage(text,'user');setReplies([]);const loading=addMessage('Analizando tu pregunta…','bot','loading');try{const response=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({messages:state.history.slice(-10),profile:state.profile})});if(!response.ok)throw new Error('AI unavailable');const data=await response.json();loading.remove();addMessage(data.text||fallbackReply(text))}catch{loading.remove();addMessage(fallbackReply(text))}const button=document.createElement('button');button.type='button';button.textContent=state.step<flow.length?'Continuar con mi orientación':'Preparar mi solicitud';button.addEventListener('click',()=>state.step<flow.length?askCurrent():finishQualification());quickReplies.appendChild(button)}
 function fallbackReply(text){const value=text.toLowerCase();if(value.includes('starter')||value.includes('founding'))return'El Starter Pack reúne El Día 29, Romantizar la Prep y 5 Claves Antes de Competir. Apertura: $960.40 MXN (30%) para hasta 100 Founding Members durante 72 horas, con Founding Access a Posing Intensivo. Después: $1,050 MXN (23% aprox.). Consulta apertura y disponibilidad en la página Founding 100.';if(value.includes('precio')||value.includes('cuánto')||value.includes('costo'))return'Los precios actuales son: Coaching 1 a 1 online $2,830 MXN; Bodybuilding Training System $3,140 MXN; Trainer Presencial $10,440 MXN; Posing Coaching $2,620 MXN; Preparación para Competencia $4,180 MXN; y los productos digitales: 5 Claves $320 MXN, El Día 29 $526 MXN y Romantizar la Prep $526 MXN.';if(value.includes('trainer')||value.includes('presencial'))return'Trainer Presencial está disponible por $10,440 MXN con supervisión directa.';if(value.includes('compet')||value.includes('tarima'))return'La Preparación para Competencia cuesta $4,180 MXN. Para orientarte necesitamos experiencia, división, federación y fecha aproximada.';if(value.includes('posing')||value.includes('pose'))return'Posing Coaching | Aburto Team está disponible por $2,620 MXN. También puedes explorar El Día 29 y Romantizar la Prep desde la biblioteca digital.';if(value.includes('nutri')||value.includes('dieta'))return'La orientación nutricional requiere contexto individual. No te daré dosis ni protocolos aquí, pero puedo preparar una solicitud clara para que Andrés valore tu caso.';return'Puedo registrar tu elección entre Coaching 1 a 1, Bodybuilding Training System, Trainer Presencial, Posing Coaching, Preparación para Competencia o cualquiera de los tres libros digitales activos.'}
 function resetChat(askFirst=true){state.step=0;state.profile=emptyProfile();state.history=[];lastCapturedLead='';lastCaptureResult=null;chatLog.replaceChildren();setReplies([]);addMessage('Hola. Soy el asistente de Aburto Pro Coach. Te ayudaré a encontrar el siguiente paso y a preparar tu solicitud en menos de dos minutos.');if(askFirst)askCurrent()}
@@ -100,63 +103,6 @@ function initReviewCarousel(){
   });
 }
 
-function initAvailabilityForm(){
-  const modal=$('#availabilityModal'),form=$('#availabilityForm'),status=$('#availabilityStatus'),submit=$('#availabilitySubmit');
-  if(!modal||!form)return;
-  const service=$('#availabilityService'),serviceLabel=$('#availabilityServiceLabel');
-  const open=name=>{
-    service.value=name;
-    serviceLabel.value=name;
-    status.textContent='';
-    modal.classList.add('open');
-    modal.setAttribute('aria-hidden','false');
-    document.body.classList.add('modal-open');
-    setTimeout(()=>$('#availabilityName')?.focus(),60);
-  };
-  const close=()=>{
-    modal.classList.remove('open');
-    modal.setAttribute('aria-hidden','true');
-    document.body.classList.remove('modal-open');
-  };
-  $('[data-consult]').forEach(button=>button.addEventListener('click',()=>open(button.dataset.consult)));
-  $('[data-close-consult]',modal).forEach(button=>button.addEventListener('click',close));
-  document.addEventListener('keydown',event=>{if(event.key==='Escape'&&modal.classList.contains('open'))close()});
-  form.addEventListener('submit',async event=>{
-    event.preventDefault();
-    submit.disabled=true;
-    submit.textContent='Enviando…';
-    status.textContent='';
-    try{
-      const response=await fetch('/api/availability',{
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({
-          service:service.value,
-          name:$('#availabilityName').value,
-          phone:$('#availabilityPhone').value,
-          email:$('#availabilityEmail').value,
-          message:$('#availabilityMessage').value,
-          consent:$('#availabilityConsent').checked
-        })
-      });
-      const data=await response.json().catch(()=>({}));
-      if(!response.ok)throw new Error(data.error||'No se pudo enviar la consulta.');
-      form.reset();
-      service.value=data.service||'';
-      serviceLabel.value=data.service||'';
-      status.textContent='Solicitud enviada. El equipo de Andrés se pondrá en contacto contigo.';
-      status.classList.add('success');
-      setTimeout(close,2200);
-    }catch(error){
-      status.classList.remove('success');
-      status.textContent=error.message||'No se pudo enviar la consulta. Intenta nuevamente.';
-    }finally{
-      submit.disabled=false;
-      submit.innerHTML='Enviar consulta <span>↗</span>';
-    }
-  });
-}
-
 function initPaymentReturn(){
   const params=new URLSearchParams(location.search);
   if(params.get('pago')!=='exito')return;
@@ -172,5 +118,4 @@ function initPaymentReturn(){
 initMobileExperience();
 initReviewCarousel();
 initPaymentReturn();
-initAvailabilityForm();
 resetChat();
