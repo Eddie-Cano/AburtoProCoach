@@ -50,8 +50,11 @@ export function buildPurchaseDeliveryEmail({
   name,
   productName,
   fileUrl,
+  files,
+  foundingMember,
   telegramWaitlistUrl = process.env.TELEGRAM_WAITLIST_URL || '',
 }) {
+  if (Array.isArray(files) && files.length > 1) return buildPackDeliveryEmail({ name, productName, files, foundingMember, telegramWaitlistUrl });
   const customerName = cleanText(name, 100);
   const product = cleanText(productName, 160) || 'tu producto digital';
   const accessUrl = safeHttpsUrl(fileUrl);
@@ -169,6 +172,31 @@ export function buildPurchaseDeliveryEmail({
   return { subject, text, html };
 }
 
+export function buildPackDeliveryEmail({ name, productName = 'Starter Pack', files, foundingMember, telegramWaitlistUrl = '' }) {
+  if (!Array.isArray(files) || files.length !== 3) throw new Error('The Starter Pack requires three delivered products');
+  const products = files.map(file => ({ name: cleanText(file.name, 160), url: safeHttpsUrl(file.fileUrl || file.url) }));
+  if (products.some(file => !file.url || !file.name)) throw new Error('Invalid pack access URL');
+  const number = Number(foundingMember?.number);
+  const founder = foundingMember?.active === true && Number.isInteger(number) && number >= 1 && number <= 100;
+  const memberId = String(number).padStart(3, '0');
+  const waitlistUrl = safeHttpsUrl(telegramWaitlistUrl);
+  const subject = founder ? `Founding Member #${memberId}: tus tres accesos ya están listos` : 'Tu Starter Pack: tus tres accesos ya están listos';
+  const text = [name ? `Hola, ${cleanText(name, 100)}.` : 'Hola.', '', '¡Gracias por tu compra!',
+    `Tu pago del ${cleanText(productName, 160)} fue confirmado. Ya tienes acceso a los tres productos:`, '',
+    ...products.map(file => `${file.name}: ${file.url}`), '',
+    ...(founder ? [`ERES FOUNDING MEMBER #${memberId} / 100`, 'Tu Founding Access está registrado: aviso privado, acceso anticipado y un precio exclusivo para comprar Posing Intensivo cuando se lance.', 'Te avisaremos en el correo de tu compra. La fecha y el precio exclusivo se anunciarán antes de abrir. Posing Intensivo se adquiere por separado.', ''] : []),
+    'Abre los archivos en Google Drive con el mismo correo que utilizaste al comprar. El acceso es personal.',
+    ...(waitlistUrl ? ['', `Lista de espera de Telegram (registro voluntario): ${waitlistUrl}`] : []),
+    '', 'Gracias por confiar en este proceso.', 'Andrés Aburto · Formación aplicada al fitness.',
+    'Para recibir ayuda, responde a este correo.',
+  ].join('\n');
+  const site = safeHttpsUrl(process.env.SITE_URL || DEFAULT_SITE_URL, DEFAULT_SITE_URL).replace(/\/$/, '');
+  const buttons = products.map((file, i) => `<tr><td style="padding:0 28px 15px"><a href="${escapeHtml(file.url)}" style="display:block;background:#951f29;border-radius:6px;padding:18px;color:white;text-decoration:none;font:700 15px Arial,sans-serif">0${i + 1} · ABRIR ${escapeHtml(file.name.toUpperCase())} →</a></td></tr>`).join('');
+  const bonus = founder ? `<tr><td style="padding:10px 28px 28px"><div style="background:#211217;border:1px solid #60303d;padding:24px"><p style="margin:0;color:#ef9ba7;font:700 12px Arial,sans-serif;letter-spacing:1px">FOUNDING MEMBER #${memberId} / 100</p><h2 style="color:#f5e7d5;font:800 25px Arial,sans-serif;margin:15px 0">FOUNDING ACCESS CONFIRMADO.</h2><p style="color:#d5c2c6;font:14px/1.7 Arial,sans-serif;margin:0">Recibirás aviso privado, acceso anticipado y un precio exclusivo para comprar <strong>Posing Intensivo</strong> cuando abra. Te avisaremos en el correo de tu compra antes del lanzamiento público.</p><p style="color:#a99097;font:12px/1.7 Arial,sans-serif;margin:16px 0 0">Posing Intensivo se adquiere por separado. La fecha y el precio exclusivo se anunciarán antes de abrir.</p></div></td></tr>` : '';
+  const html = `<!doctype html><html lang="es-MX"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(subject)}</title></head><body style="margin:0;background:#080808"><table role="presentation" width="100%" cellspacing="0" cellpadding="0"><tr><td align="center" style="padding:24px 10px"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:640px;background:#100d0e;border:1px solid #35262b;border-top:6px solid #951f29;border-radius:10px"><tr><td align="center" style="padding:30px 28px"><img src="${escapeHtml(site)}/assets/logo/aburto-original.png" width="185" alt="Aburto Pro Coach" style="width:185px;height:auto"></td></tr><tr><td style="padding:0 28px 20px"><p style="color:#ef8291;font:700 12px Arial,sans-serif;letter-spacing:1px">COMPRA CONFIRMADA · STARTER PACK</p><h1 style="color:#f5e7d5;font:800 35px/1.05 Arial,sans-serif;margin:16px 0">TRES HERRAMIENTAS.<br>YA SON TUYAS.</h1><p style="color:#d3c4c0;font:15px/1.7 Arial,sans-serif">${name ? `Hola, ${escapeHtml(cleanText(name, 100))}. ` : ''}¡Gracias por tu compra! Tu pago fue confirmado y tus tres accesos ya están listos.</p><img src="${escapeHtml(site)}/assets/products/starter-pack-founding-100.webp" width="580" alt="Los tres libros del Starter Pack" style="display:block;width:100%;height:auto;margin:22px 0 4px"></td></tr>${buttons}${bonus}<tr><td style="padding:8px 28px 24px;color:#b4a6a2;font:13px/1.7 Arial,sans-serif">Abre cada archivo con la cuenta de Google asociada al correo de tu compra. El acceso es personal.${waitlistUrl ? `<p>¿Quieres recibir la invitación a la comunidad? <a href="${escapeHtml(waitlistUrl)}" style="color:#ef9ba7">Únete voluntariamente a la lista de espera de Telegram.</a></p>` : ''}</td></tr><tr><td style="border-top:1px solid #35262b;padding:24px 28px;color:#b4a6a2;font:13px/1.7 Arial,sans-serif">Gracias por confiar en este proceso.<br><strong style="color:#f5e7d5">Andrés Aburto · Formación aplicada al fitness.</strong><p>Para recibir ayuda con tu compra, responde a este correo.</p></td></tr></table></td></tr></table></body></html>`;
+  return { subject, text, html };
+}
+
 export async function sendTransactionalEmail({
   to,
   subject,
@@ -222,15 +250,16 @@ export async function sendPurchaseDeliveryEmail({ sale, delivery, eventId }) {
     name: sale.name,
     productName: sale.productName,
     fileUrl: delivery.fileUrl,
+    files: delivery.files,
+    foundingMember: sale.foundingMember,
   });
   return sendTransactionalEmail({
     to: sale.email,
     ...content,
-    idempotencyKey: `aburto/delivery/${eventId}`,
+    idempotencyKey: `aburto/delivery/${sale.checkoutSessionId || eventId}`,
     tags: [
       { name: 'category', value: 'digital_delivery' },
       { name: 'product', value: cleanText(sale.productSlug || 'digital', 200).replace(/[^a-zA-Z0-9_-]/g, '-') },
     ],
   });
 }
-

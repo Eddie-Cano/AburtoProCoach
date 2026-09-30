@@ -1,9 +1,12 @@
 import { buildPurchaseDeliveryEmail } from './_email.js';
+import { PACK_PRODUCTS } from '../lib/launch-config.js';
 
 const PRODUCTS = {
   '5-claves': '5 Claves Antes de Competir',
   'dia-29': 'El Día 29',
   'romantizar': 'Romantizar la Prep',
+  'starter-pack': 'Starter Pack',
+  'founding-100': 'Starter Pack · Founding 100',
 };
 
 export default function handler(req, res) {
@@ -16,10 +19,13 @@ export default function handler(req, res) {
     name: 'Cliente',
     productName,
     fileUrl: 'https://drive.google.com/',
-    telegramWaitlistUrl: 'https://www.aburtoprocoach.com/comunidad-telegram.html',
+    ...(key === 'starter-pack' || key === 'founding-100' ? {
+      files: PACK_PRODUCTS.map(file => ({ name: file.name, fileUrl: 'https://drive.google.com/' })),
+      ...(key === 'founding-100' ? { foundingMember: { active: true, number: 1 } } : {}),
+    } : {}),
+    telegramWaitlistUrl: process.env.TELEGRAM_WAITLIST_URL || '',
   });
 
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
   return res.status(200).send(preview.html);
 }
-

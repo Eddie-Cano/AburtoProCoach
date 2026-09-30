@@ -41,7 +41,7 @@ test('exchanges the Vercel token and requests Drive access for the service accou
     assert.equal(options.url,
       'https://iamcredentials.googleapis.com/v1/projects/-/serviceAccounts/delivery@example.iam.gserviceaccount.com:generateAccessToken');
     assert.equal(options.headers.authorization, 'Bearer federated-test-token');
-    assert.deepEqual(options.data.scope, ['https://www.googleapis.com/auth/drive']);
+    assert.deepEqual(options.data.scope, ['https://www.googleapis.com/auth/drive', 'https://www.googleapis.com/auth/spreadsheets']);
     return { data: { accessToken: 'drive-test-token', expireTime: new Date(Date.now() + 3600000).toISOString() } };
   };
   client.transporter.request = request;

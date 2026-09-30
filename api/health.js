@@ -1,3 +1,4 @@
+import { redisConfigured } from '../lib/redis.js';
 export default function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
   if (req.method !== 'GET') return res.status(405).json({ ok: false });
@@ -25,6 +26,10 @@ export default function handler(req, res) {
       process.env.GCP_PROJECT_NUMBER && process.env.GCP_WORKLOAD_IDENTITY_POOL_ID &&
       process.env.GCP_WORKLOAD_IDENTITY_POOL_PROVIDER_ID && process.env.GCP_SERVICE_ACCOUNT_EMAIL
     ),
+    foundingCapacity: 100,
+    foundingDurationHours: 72,
+    foundingStartConfigured: Number.isFinite(Date.parse(process.env.FOUNDING_START_AT || '')),
+    packCheckoutConfigured: Boolean(process.env.STRIPE_SECRET_KEY && process.env.STRIPE_WEBHOOK_SECRET && redisConfigured()),
     timestamp: new Date().toISOString(),
   });
 }
