@@ -166,6 +166,7 @@ export async function queueAndSendWhatsApp({ leadId, projectId, recipient, text 
         notificationId,
         provider: 'meta',
         reason: 'meta_send_failed',
+        error: String(error?.message || 'Meta send failed').slice(0, 300),
       };
     }
   }
