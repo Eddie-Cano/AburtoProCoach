@@ -57,12 +57,20 @@
   form?.addEventListener('submit', async event => {
     event.preventDefault();
     const button = form.querySelector('button[type="submit"]');
+    const consent = form.querySelector('[data-legal-consent]');
+    if (!consent?.checked) {
+      consent?.setCustomValidity('Debes aceptar el Aviso de Privacidad y el Acuerdo de Confidencialidad para continuar.');
+      consent?.reportValidity();
+      return;
+    }
+    consent.setCustomValidity('');
     button.disabled = true;
     message('Comprobando el precio y la disponibilidad…');
     try {
       const response = await fetch('/api/commerce', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ product: 'starter-pack', email: form.elements.email.value.trim(), expectedPrice: offer?.price,
+          acceptedConfidentiality: true,
           utmSource: new URLSearchParams(location.search).get('utm_source') || '',
           utmCampaign: new URLSearchParams(location.search).get('utm_campaign') || '' }),
       });
