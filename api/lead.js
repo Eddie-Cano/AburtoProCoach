@@ -33,6 +33,7 @@ function recommendation(profile) {
   if (target.includes('bodybuilding')) return 'Bodybuilding Training System — $3,140 MXN';
   if (target.includes('posing coaching')) return 'Posing Coaching | Aburto Team — $2,620 MXN';
   if (target.includes('preparación para competencia')) return 'Preparación para Competencia — $4,180 MXN';
+  if (target.includes('starter pack') || target.includes('founding')) return 'Starter Pack — consultar precio y disponibilidad en Founding 100';
   if (target.includes('5 claves')) return '5 Claves Antes de Competir — $320 MXN';
   if (target.includes('posing intensivo')) return 'Posing Intensivo — próximamente';
   if (target.includes('diario de progreso')) return 'Diario de Progreso — próximamente';

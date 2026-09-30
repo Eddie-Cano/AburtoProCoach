@@ -41,7 +41,7 @@
       }
     },
     "5-habitos-dia-29": {
-      "status": "pending_stripe_permission",
+      "status": "stripe_catalog_ready_delivery_pending",
       "target_charge_mxn": 526,
       "target_net_mxn": 500,
       "landing": "/productos/5-habitos.html",
@@ -50,10 +50,14 @@
         "mode": "private_reader_share",
         "disable_download_print_copy": true,
         "revoke_on_refund_or_dispute": true
+      },
+      "product": "prod_VLzg5jnrQe0wbX",
+      "prices": {
+        "digital": "price_1ULHh61f6JXFxDAP56jqi8Bg"
       }
     },
     "romantizar-la-prep": {
-      "status": "pending_stripe_permission",
+      "status": "stripe_catalog_ready_delivery_pending",
       "target_charge_mxn": 526,
       "target_net_mxn": 500,
       "landing": "/productos/romantizar-la-prep.html",
@@ -62,6 +66,34 @@
         "mode": "private_reader_share",
         "disable_download_print_copy": true,
         "revoke_on_refund_or_dispute": true
+      },
+      "product": "prod_VLzg6f0ajvzm1v",
+      "prices": {
+        "digital": "price_1ULHh81f6JXFxDAPeGT0TmIx"
+      }
+    },
+    "starter-pack": {
+      "product": "prod_VLzgpKlRT9vvm7",
+      "prices": {
+        "founding": "price_1ULHh51f6JXFxDAPX5atXQGN",
+        "regular": "price_1ULHh51f6JXFxDAPbNWWAb6h"
+      },
+      "status": "stripe_catalog_ready_delivery_pending",
+      "landing": "/productos/starter-pack.html",
+      "founding_landing": "/founding-members.html",
+      "founding_charge_mxn": 960.4,
+      "regular_charge_mxn": 1050,
+      "individual_total_mxn": 1372,
+      "checkout_mode": "server_reserved_checkout",
+      "founding_capacity": 100,
+      "founding_duration_hours": 72,
+      "delivery": {
+        "mode": "three_private_reader_shares",
+        "products": [
+          "5-habitos-dia-29",
+          "romantizar-la-prep",
+          "5-claves-antes-de-competir"
+        ]
       }
     }
   },
@@ -75,7 +107,7 @@
     "5-habitos-dia-29": null,
     "romantizar-la-prep": null
   },
-  "blocked_reason": "Stripe connector lacks product_write/payment_links_write permission for the two new digital products. Website is ready; replace null links after Stripe authorization.",
+  "blocked_reason": "Stripe product and price permissions verified. Live checkout awaits Redis capacity storage, validated Google service account, and official launch start time.",
   "digital_delivery": {
     "provider": "google_drive",
     "status": "code_ready_requires_gcp_wif",
@@ -93,5 +125,17 @@
       "revoke access after refund or dispute"
     ],
     "auth": "vercel_oidc_google_workload_identity_federation"
+  },
+  "webhook": {
+    "id": "we_1ULHh91f6JXFxDAPrXMd4Rdc",
+    "url": "https://www.aburtoprocoach.com/api/stripe-webhook",
+    "status": "disabled_pending_delivery_verification",
+    "events": [
+      "checkout.session.completed",
+      "checkout.session.async_payment_succeeded",
+      "checkout.session.expired",
+      "charge.refunded",
+      "charge.dispute.created"
+    ]
   }
 }

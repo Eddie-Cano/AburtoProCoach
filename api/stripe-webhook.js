@@ -3,6 +3,9 @@ import { getVercelOidcToken } from '@vercel/oidc';
 import { ExternalAccountClient } from 'google-auth-library';
 import { queueAndSendWhatsApp } from './_leadcore.js';
 import { sendPurchaseDeliveryEmail, sendTransactionalEmail } from './_email.js';
+import { PACK_PRODUCTS, LAUNCH } from '../lib/launch-config.js';
+import { confirmMember, releaseReservation, emailHash, foundingKeys } from '../lib/founding.js';
+import { syncSaleToSheet, saleValues } from '../lib/crm.js';
 
 export const config = { api: { bodyParser: false } };
 
@@ -35,6 +38,7 @@ const PRODUCT_NAMES = {
   '5-claves-antes-de-competir': '5 Claves Antes de Competir',
   '5-habitos-dia-29': 'El Día 29',
   'romantizar-la-prep': 'Romantizar la Prep',
+  'starter-pack': 'Starter Pack',
   'coaching-1a1-online': 'Coaching 1 a 1 — Online',
   'coaching-1-a-1-online': 'Coaching 1 a 1 — Online',
   'coaching-1a1-presencial': 'Trainer Presencial',
@@ -112,14 +116,14 @@ export function createDriveAuthClient(env = process.env) {
     token_url: 'https://sts.googleapis.com/v1/token',
     service_account_impersonation_url:
       `https://iamcredentials.googleapis.com/v1/projects/-/serviceAccounts/${serviceAccountEmail}:generateAccessToken`,
-    scopes: ['https://www.googleapis.com/auth/drive'],
+    scopes: ['https://www.googleapis.com/auth/drive', 'https://www.googleapis.com/auth/spreadsheets'],
     subject_token_supplier: {
       getSubjectToken: () => getVercelOidcToken(),
     },
   });
 }
 
-async function googleAccessToken() {
+export async function googleAccessToken() {
   const authClient = createDriveAuthClient();
   if (!authClient) return null;
 
@@ -145,10 +149,29 @@ async function driveApi(path, { method = 'GET', body } = {}) {
   return { configured: true, data };
 }
 
-async function grantDigitalAccess({ slug, email, paymentIntentId }) {
-  const product = DIGITAL_DELIVERY[slug];
-  if (!product) return { applicable: false, granted: false };
-  if (!email) return { applicable: true, granted: false, reason: 'missing_customer_email' };
+export function deliveryProducts(slug) {
+  return slug === 'starter-pack' ? PACK_PRODUCTS : DIGITAL_DELIVERY[slug] ? [{ ...DIGITAL_DELIVERY[slug], slug, name: PRODUCT_NAMES[slug] }] : [];
+}
+
+export async function grantDigitalAccess({ slug, email, paymentIntentId }) {
+  const products = deliveryProducts(slug);
+  if (!products.length) return { applicable: false, granted: false };
+  if (!email || !paymentIntentId) return { applicable: true, granted: false, reason: 'missing_customer_or_payment' };
+  const key = `aburto:drive-grant:${paymentIntentId}`;
+  const saved = JSON.parse(await redis('GET', key) || 'null');
+  const grants = saved ? (Array.isArray(saved) ? saved : [saved]) : [];
+  for (const product of products) {
+    if (grants.some(grant => grant.fileId === product.fileId && grant.permissionId)) continue;
+    const granted = await grantFileAccess({ product, email, paymentIntentId });
+    if (!granted.granted) return { applicable: true, granted: false, reason: granted.reason, files: grants };
+    grants.push({ ...granted, slug: product.slug, name: product.name, email });
+    await redis('SET', key, JSON.stringify(grants));
+  }
+  return { applicable: true, granted: true, fileUrl: products[0].url,
+    files: products.map(product => ({ name: product.name, fileUrl: product.url, slug: product.slug })) };
+}
+
+async function grantFileAccess({ product, email, paymentIntentId }) {
 
   const protection = await driveApi(
     `/files/${product.fileId}?supportsAllDrives=true&fields=id,copyRequiresWriterPermission`,
@@ -158,7 +181,15 @@ async function grantDigitalAccess({ slug, email, paymentIntentId }) {
     return { applicable: true, granted: false, reason: 'google_drive_not_configured' };
   }
 
-  const permission = await driveApi(
+  let existing, pageToken;
+  do {
+    const listed = await driveApi(`/files/${product.fileId}/permissions?supportsAllDrives=true&fields=nextPageToken,permissions(id,emailAddress,role,type)&pageSize=100${pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : ''}`);
+    existing = listed.data?.permissions?.find(permission => String(permission.emailAddress || '').toLowerCase() === email.toLowerCase());
+    pageToken = listed.data?.nextPageToken;
+  } while (!existing && pageToken);
+  const ownersKey = `aburto:entitlement:${product.fileId}:${emailHash(email)}`;
+  if (existing && Number(await redis('SCARD', ownersKey)) === 0) await redis('SADD', ownersKey, 'existing-access');
+  const permission = existing ? { data: existing } : await driveApi(
     `/files/${product.fileId}/permissions?supportsAllDrives=true&sendNotificationEmail=false&fields=id,emailAddress,role,type`,
     {
       method: 'POST',
@@ -167,14 +198,8 @@ async function grantDigitalAccess({ slug, email, paymentIntentId }) {
   );
 
   const permissionId = permission.data?.id || '';
-  if (paymentIntentId && permissionId) {
-    await redis('SET', `aburto:drive-grant:${paymentIntentId}`, JSON.stringify({
-      fileId: product.fileId,
-      permissionId,
-      email,
-      slug,
-    }), 'EX', 31536000);
-  }
+  if (!permissionId) throw new Error('Drive permission was not granted');
+  await redis('SADD', ownersKey, paymentIntentId);
 
   return {
     applicable: true,
@@ -182,6 +207,7 @@ async function grantDigitalAccess({ slug, email, paymentIntentId }) {
     fileId: product.fileId,
     fileUrl: product.url,
     permissionId,
+    ownersKey,
   };
 }
 
@@ -189,41 +215,27 @@ async function revokeDigitalAccess(paymentIntentId) {
   if (!paymentIntentId) return { revoked: false, reason: 'missing_payment_intent' };
   const raw = await redis('GET', `aburto:drive-grant:${paymentIntentId}`);
   if (!raw) return { revoked: false, reason: 'grant_not_found' };
-  const grant = JSON.parse(raw);
-  const result = await driveApi(
-    `/files/${grant.fileId}/permissions/${grant.permissionId}?supportsAllDrives=true`,
-    { method: 'DELETE' }
-  );
-  if (result.configured === false) return { revoked: false, reason: 'google_drive_not_configured' };
+  const saved = JSON.parse(raw);
+  const grants = Array.isArray(saved) ? saved : [saved];
+  for (const grant of grants) {
+    const ownersKey = grant.ownersKey || `aburto:entitlement:${grant.fileId}:${emailHash(grant.email)}`;
+    if (Number(await redis('SCARD', ownersKey)) > 0) {
+      await redis('SREM', ownersKey, paymentIntentId);
+      if (Number(await redis('SCARD', ownersKey)) > 0) continue;
+    }
+    const result = await driveApi(`/files/${grant.fileId}/permissions/${grant.permissionId}?supportsAllDrives=true`, { method: 'DELETE' });
+    if (result.configured === false) return { revoked: false, reason: 'google_drive_not_configured' };
+  }
   await redis('DEL', `aburto:drive-grant:${paymentIntentId}`);
-  return { revoked: true, email: grant.email, slug: grant.slug };
+  return { revoked: true, email: grants[0]?.email, slug: grants.length > 1 ? 'starter-pack' : grants[0]?.slug };
 }
 
 async function syncSaleToCrm(sale) {
   if (!process.env.GOOGLE_SHEETS_WEBHOOK_URL) {
-    return { synced: false, reason: 'crm_webhook_not_configured' };
+    return syncSaleToSheet(sale, await googleAccessToken());
   }
   const secret = process.env.GOOGLE_SHEETS_WEBHOOK_SECRET || process.env.CRM_WEBHOOK_SECRET || '';
-  const values = [
-    sale.saleId,
-    sale.createdAt,
-    sale.eventId,
-    sale.checkoutSessionId,
-    sale.paymentLinkId,
-    sale.kind,
-    sale.productName,
-    sale.productSlug,
-    sale.name,
-    sale.email,
-    sale.phone,
-    sale.amountMxn,
-    sale.currency,
-    sale.paymentStatus,
-    sale.paymentIntentId,
-    sale.whatsappStatus,
-    sale.emailStatus,
-    'Stripe Payment Link',
-  ];
+  const values = saleValues(sale);
   const response = await fetch(process.env.GOOGLE_SHEETS_WEBHOOK_URL, {
     method: 'POST',
     headers: {
@@ -243,6 +255,7 @@ async function syncSaleToCrm(sale) {
   if (!response.ok) throw new Error(`CRM webhook ${response.status}`);
   const data = await response.json().catch(() => ({}));
   if (data.ok !== true) throw new Error('CRM webhook rejected');
+  if (sale.foundingMember) await syncSaleToSheet(sale, await googleAccessToken());
   return { synced: true };
 }
 
@@ -253,6 +266,7 @@ function saleMessage(sale) {
     `Producto/servicio: ${sale.productName}`,
     `Tipo: ${sale.kind === 'digital' ? 'Producto digital' : 'Servicio'}`,
     `Monto: $${sale.amountMxn.toLocaleString('es-MX')} MXN`,
+    ...(sale.foundingMember ? [`Founding Member: #${String(sale.foundingMember.number).padStart(3, '0')} / 100`] : []),
     '',
     `Cliente: ${sale.name || 'Sin nombre'}`,
     `Correo: ${sale.email || 'No informado'}`,
@@ -282,16 +296,36 @@ export default async function handler(req, res) {
   }
 
   if (['charge.refunded', 'charge.dispute.created'].includes(event.type)) {
-    const paymentIntentId = String(event?.data?.object?.payment_intent || '');
+    const charge = event?.data?.object || {};
+    if (charge.livemode !== true) return res.status(200).json({ received: true, ignored: true });
+    if (event.type === 'charge.refunded' && Number(charge.amount_refunded) < Number(charge.amount)) return res.status(200).json({ received: true, partialRefund: true });
+    const paymentIntentId = String(charge.payment_intent || '');
     try {
+      if (!paymentIntentId) return res.status(200).json({ received: true, ignored: true });
+      await redis('SET', `aburto:revoked-payment:${paymentIntentId}`, event.type);
       const revoked = await revokeDigitalAccess(paymentIntentId);
+      const sessionId = await redis('GET', `aburto:payment-session:${paymentIntentId}`);
+      if (sessionId) {
+        const jobKey = `aburto:fulfillment:${sessionId}`;
+        const job = JSON.parse(await redis('GET', jobKey) || 'null');
+        if (job?.sale) {
+          job.sale.paymentStatus = event.type === 'charge.refunded' ? 'Reembolsado' : 'En disputa';
+          job.sale.deliveryStatus = 'Acceso revocado';
+          if (job.sale.foundingMember) {
+            job.sale.foundingMember.active = false;
+            await redis('HSET', foundingKeys[0], emailHash(job.sale.email), JSON.stringify(job.sale.foundingMember));
+          }
+          await syncSaleToCrm(job.sale);
+          await redis('SET', jobKey, JSON.stringify(job));
+        }
+      }
       return res.status(200).json({ received: true, accessRevocation: revoked });
     } catch {
       return res.status(503).json({ error: 'No se pudo revocar el acceso digital.' });
     }
   }
 
-  if (!['checkout.session.completed', 'checkout.session.async_payment_succeeded'].includes(event.type)) {
+  if (!['checkout.session.completed', 'checkout.session.async_payment_succeeded', 'checkout.session.expired'].includes(event.type)) {
     return res.status(200).json({ received: true, ignored: true });
   }
 
@@ -299,28 +333,37 @@ export default async function handler(req, res) {
   if (session.livemode !== true || session.metadata?.project !== 'andres-aburto') {
     return res.status(200).json({ received: true, ignored: true });
   }
+  if (event.type === 'checkout.session.expired') {
+    try {
+      if (session.metadata.reservation_id) await releaseReservation(session.metadata.reservation_id, session.id);
+      return res.status(200).json({ received: true, expired: true });
+    } catch { return res.status(503).json({ error: 'No se pudo liberar el lugar reservado.' }); }
+  }
   if (!['paid', 'no_payment_required'].includes(String(session.payment_status || ''))) {
     return res.status(200).json({ received: true, pending: true });
   }
 
   const slug = String(session.metadata?.product_slug || 'venta');
-  if (DIGITAL_DELIVERY[slug] && (!process.env.UPSTASH_REDIS_REST_URL || !process.env.UPSTASH_REDIS_REST_TOKEN)) {
+  const digital = deliveryProducts(slug).length > 0;
+  if (!process.env.UPSTASH_REDIS_REST_URL || !process.env.UPSTASH_REDIS_REST_TOKEN) {
     return res.status(503).json({ error: 'El registro de acceso digital no está configurado.' });
   }
+  if (slug === 'starter-pack' && (session.currency !== 'mxn' || Number(session.amount_total) !== (session.metadata.offer === 'founding' ? LAUNCH.foundingPrice : LAUNCH.regularPrice))) return res.status(400).json({ error: 'El importe no corresponde a la oferta.' });
 
-  const eventKey = `aburto:stripe-event:${event.id}`;
+  const eventKey = `aburto:fulfillment-lock:${session.id}`;
+  const jobKey = `aburto:fulfillment:${session.id}`;
+  let job;
   try {
-    const existing = await redis('GET', eventKey);
-    if (existing) return res.status(200).json({ received: true, duplicate: true });
-    const lock = await redis('SET', eventKey, 'processing', 'NX', 'EX', 3600);
-    if (lock === null && process.env.UPSTASH_REDIS_REST_URL) {
-      return res.status(200).json({ received: true, duplicate: true });
-    }
+    if (await redis('GET', `aburto:revoked-payment:${session.payment_intent}`)) return res.status(200).json({ received: true, revoked: true });
+    job = JSON.parse(await redis('GET', jobKey) || '{}');
+    if (job.done) return res.status(200).json({ received: true, duplicate: true });
+    const lock = await redis('SET', eventKey, 'processing', 'NX', 'EX', 180);
+    if (lock === null) return res.status(503).json({ error: 'La compra está siendo procesada.' });
   } catch {
     return res.status(503).json({ error: 'No se pudo asegurar la deduplicación.' });
   }
 
-  const sale = {
+  const sale = job.sale || {
     saleId: `SALE-${String(session.id || event.id).replace(/^cs_/, '').slice(0, 18)}`,
     eventId: String(event.id || ''),
     checkoutSessionId: String(session.id || ''),
@@ -328,7 +371,7 @@ export default async function handler(req, res) {
     paymentIntentId: String(session.payment_intent || ''),
     productSlug: slug,
     productName: PRODUCT_NAMES[slug] || slug,
-    kind: DIGITAL_DELIVERY[slug] ? 'digital' : String(session.metadata?.kind || 'service'),
+    kind: digital ? 'digital' : String(session.metadata?.kind || 'service'),
     name: String(session.customer_details?.name || session.customer_details?.individual_name || ''),
     email: String(session.customer_details?.email || session.customer_email || ''),
     phone: String(session.customer_details?.phone || ''),
@@ -338,30 +381,58 @@ export default async function handler(req, res) {
     createdAt: new Date(Number(session.created || Math.floor(Date.now()/1000)) * 1000).toISOString(),
     whatsappStatus: 'Pendiente',
     emailStatus: 'Pendiente',
-    deliveryStatus: DIGITAL_DELIVERY[slug] ? 'Pendiente' : 'No aplica',
+    deliveryStatus: digital ? 'Pendiente' : 'No aplica',
+    buyerEmailStatus: digital ? 'Pendiente' : 'No aplica',
+    offer: String(session.metadata?.offer || ''),
+    products: deliveryProducts(slug).map(file => file.name),
+    utmSource: String(session.metadata?.utm_source || ''),
+    utmCampaign: String(session.metadata?.utm_campaign || ''),
+    startsAt: process.env.FOUNDING_START_AT || '',
+    endsAt: process.env.FOUNDING_START_AT ? new Date(Date.parse(process.env.FOUNDING_START_AT) + 72 * 3600000).toISOString() : '',
   };
+  job.sale = sale;
+  const save = async () => redis('SET', jobKey, JSON.stringify(job));
 
   try {
-    let delivery = { applicable: false, granted: false };
-    let customerEmail = { sent: true, reason: 'not_applicable' };
-    if (DIGITAL_DELIVERY[slug]) {
+    if (slug === 'starter-pack' && !sale.foundingMember) sale.foundingMember = await confirmMember(session, event.created);
+    await redis('SET', `aburto:payment-session:${sale.paymentIntentId}`, session.id);
+    // Record confirmed payment and membership before side effects. Later retries
+    // update this row with delivery and email progress rather than adding a sale.
+    if (!job.recorded) {
+      const recorded = await syncSaleToCrm(sale);
+      if (!recorded.synced) throw new Error('Confirmed sale could not be recorded');
+      job.recorded = true;
+      await save();
+    }
+    let delivery = job.delivery || { applicable: false, granted: false };
+    let customerEmail = { sent: Boolean(job.buyerEmail) || !digital, reason: 'not_applicable' };
+    if (digital) {
       delivery = await grantDigitalAccess({
         slug,
         email: sale.email,
         paymentIntentId: sale.paymentIntentId,
       });
+      job.delivery = delivery;
+      sale.deliveries = deliveryProducts(slug).map(file => ({ slug: file.slug, status: delivery.granted || delivery.files?.some(grant => grant.slug === file.slug && grant.permissionId) ? 'Drive concedido' : 'Pendiente' }));
       sale.deliveryStatus = delivery.granted ? 'Drive concedido' : `Pendiente: ${delivery.reason || 'no concedido'}`;
-      if (delivery.granted) {
+      await save();
+      if (delivery.granted && !job.buyerEmail) {
         customerEmail = await sendPurchaseDeliveryEmail({ sale, delivery, eventId: event.id });
         sale.deliveryStatus = customerEmail.sent ? 'Drive + correo enviados' : `Drive concedido; correo pendiente: ${customerEmail.reason || 'no enviado'}`;
       }
+      job.buyerEmail = customerEmail.sent;
+      sale.buyerEmailStatus = customerEmail.sent ? 'Enviado' : 'Pendiente';
+      if (customerEmail.sent) sale.deliveryStatus = 'Drive + correo enviados';
+      await save();
     }
 
-    const whatsapp = await queueAndSendWhatsApp({
+    const whatsapp = job.whatsapp ? { sent: true } : await queueAndSendWhatsApp({
       recipient: process.env.RAIZ_NOTIFICATION_PHONE || DEFAULT_RAIZ_PHONE,
       text: saleMessage(sale),
     });
     sale.whatsappStatus = whatsapp.sent ? 'Enviado' : `Pendiente: ${whatsapp.reason || 'no enviado'}`;
+    job.whatsapp = whatsapp.sent;
+    await save();
 
     const emailText = [
       'Nueva venta confirmada — Andrés Aburto Pro Coach',
@@ -379,20 +450,26 @@ export default async function handler(req, res) {
       `Payment Link: ${sale.paymentLinkId || 'No disponible'}`,
       `Payment Intent: ${sale.paymentIntentId || 'No disponible'}`,
       `Entrega digital: ${sale.deliveryStatus}`,
+      ...(sale.foundingMember ? [`Founding Member: #${sale.foundingMember.number} / 100`, 'Founding Access: registrado'] : []),
     ].join('\n');
 
-    const email = await sendTransactionalEmail({
+    // The pack uses one Resend email per buyer. Internal alerts remain in
+    // WhatsApp and Sheets; an optional owner copy would double the daily quota.
+    const ownerEmailRequired = slug !== 'starter-pack' || process.env.SEND_PACK_SALES_EMAIL === 'true';
+    const email = !ownerEmailRequired || job.ownerEmail ? { sent: true } : await sendTransactionalEmail({
       subject: `Nueva venta: ${sale.productName} — $${sale.amountMxn.toLocaleString('es-MX')} MXN`,
       text: emailText,
       to: [SALES_EMAIL],
-      idempotencyKey: `aburto/sale/${event.id}`,
+      idempotencyKey: `aburto/sale/${session.id}`,
       tags: [{ name: 'category', value: 'sale_notification' }],
     });
-    sale.emailStatus = email.sent ? 'Enviado' : `Pendiente: ${email.reason || 'no enviado'}`;
+    sale.emailStatus = !ownerEmailRequired ? 'Aviso en Sheets y WhatsApp' : email.sent ? 'Enviado' : `Pendiente: ${email.reason || 'no enviado'}`;
+    job.ownerEmail = ownerEmailRequired && email.sent;
+    await save();
 
     const crm = await syncSaleToCrm(sale);
 
-    const deliveryRequired = DIGITAL_DELIVERY[slug] && process.env.DRIVE_DELIVERY_REQUIRED === 'true';
+    const deliveryRequired = digital;
     const deliveryComplete = !deliveryRequired || (delivery.granted && customerEmail.sent);
 
     if (!whatsapp.sent || !email.sent || !crm.synced || !deliveryComplete) {
@@ -406,9 +483,12 @@ export default async function handler(req, res) {
       });
     }
 
-    try { await redis('SET', eventKey, 'done', 'EX', 2592000); } catch {}
+    job.done = true;
+    await save();
+    await redis('DEL', eventKey);
     return res.status(200).json({ received: true, saleId: sale.saleId, crmSynced: true });
   } catch {
+    try { await save(); if (job.recorded) await syncSaleToCrm(sale); } catch {}
     try { await redis('DEL', eventKey); } catch {}
     return res.status(503).json({ error: 'No se pudo completar la notificación de venta.' });
   }

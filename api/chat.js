@@ -1,11 +1,15 @@
 import { generateText, APICallError } from 'ai';
+import { getOffer } from '../lib/founding.js';
 
 const SYSTEM = `Eres el asistente de orientación inicial de Andrés Aburto Pro Coach.
 
 Información autorizada:
 - Servicios publicados: Coaching 1 a 1 online ($2,830 MXN), Bodybuilding Training System online ($3,140 MXN), Trainer Presencial ($10,440 MXN), Posing Coaching | Aburto Team ($2,620 MXN) y Preparación para Competencia ($4,180 MXN).
-- Producto disponible: guía digital interactiva "5 Claves Antes de Competir" por $320 MXN.
-- "Posing Intensivo" y "Diario de Progreso" se lanzan próximamente y todavía no se venden.
+- Biblioteca digital: "El Día 29" ($526 MXN), "Romantizar la Prep" ($526 MXN) y "5 Claves Antes de Competir" ($320 MXN).
+- Starter Pack: los tres libros. Apertura Founding 100: $960.40 MXN, 30% de descuento sobre $1,372, para hasta 100 miembros durante las primeras 72 horas. Después cuesta $1,050 MXN (aproximadamente 23% de ahorro). Una membresía por correo.
+- Founding Access: aviso privado, acceso anticipado y precio exclusivo para comprar Posing Intensivo después; el curso se adquiere por separado y su precio todavía no se ha definido.
+- Precio de compra y cupos se consultan en /founding-members.html; no prometas disponibilidad si el lanzamiento está en preparación.
+- "Posing Intensivo" está en desarrollo. "El Día 29" es el título aprobado del diario de progreso.
 - Todos los precios son pagos únicos en pesos mexicanos; disponibilidad y fecha de inicio se confirman con el equipo.
 - El canal público actual es Instagram: @andrsaburto.
 
@@ -32,7 +36,7 @@ export default async function handler(req, res) {
   try {
     const { text } = await generateText({
       model: 'openai/gpt-5.4-mini',
-      system: SYSTEM,
+      system: SYSTEM + '\nEstado actual de Starter Pack (servidor): ' + JSON.stringify(await getOffer().catch(() => ({ stage: 'unavailable', configured: false }))),
       messages,
       maxOutputTokens: 220,
       providerOptions: { gateway: { tags: ['feature:aburto-assistant', 'stage:first-layer'] } },
