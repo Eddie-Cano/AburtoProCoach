@@ -93,28 +93,35 @@ async function redis(...command) {
   return data.result;
 }
 
-async function googleAccessToken() {
-  const projectNumber = process.env.GCP_PROJECT_NUMBER || '';
-  const poolId = process.env.GCP_WORKLOAD_IDENTITY_POOL_ID || '';
-  const providerId = process.env.GCP_WORKLOAD_IDENTITY_POOL_PROVIDER_ID || '';
-  const serviceAccountEmail = process.env.GCP_SERVICE_ACCOUNT_EMAIL || process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL || '';
+export function createDriveAuthClient(env = process.env) {
+  const projectNumber = env.GCP_PROJECT_NUMBER || '';
+  const poolId = env.GCP_WORKLOAD_IDENTITY_POOL_ID || '';
+  const providerId = env.GCP_WORKLOAD_IDENTITY_POOL_PROVIDER_ID || '';
+  const serviceAccountEmail = env.GCP_SERVICE_ACCOUNT_EMAIL || env.GOOGLE_SERVICE_ACCOUNT_EMAIL || '';
 
   if (!projectNumber || !poolId || !providerId || !serviceAccountEmail) return null;
 
-  // The provider's default audience is an HTTPS URL; the OIDC token must match it exactly.
-  const audience = `https://iam.googleapis.com/projects/${projectNumber}/locations/global/workloadIdentityPools/${poolId}/providers/${providerId}`;
+  // STS identifies the Google provider here. The Vercel JWT audience is separate
+  // and must be allowed by that provider (https://vercel.com/<team-slug>).
+  const audience = `//iam.googleapis.com/projects/${projectNumber}/locations/global/workloadIdentityPools/${poolId}/providers/${providerId}`;
 
-  const authClient = ExternalAccountClient.fromJSON({
+  return ExternalAccountClient.fromJSON({
     type: 'external_account',
     audience,
     subject_token_type: 'urn:ietf:params:oauth:token-type:jwt',
     token_url: 'https://sts.googleapis.com/v1/token',
     service_account_impersonation_url:
       `https://iamcredentials.googleapis.com/v1/projects/-/serviceAccounts/${serviceAccountEmail}:generateAccessToken`,
+    scopes: ['https://www.googleapis.com/auth/drive'],
     subject_token_supplier: {
-      getSubjectToken: () => getVercelOidcToken({ audience }),
+      getSubjectToken: () => getVercelOidcToken(),
     },
   });
+}
+
+async function googleAccessToken() {
+  const authClient = createDriveAuthClient();
+  if (!authClient) return null;
 
   const headers = await authClient.getRequestHeaders();
   const auth = headers.get ? headers.get('authorization') : headers.Authorization || headers.authorization;
