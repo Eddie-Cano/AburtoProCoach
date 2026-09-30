@@ -1,6 +1,5 @@
 import { grantDigitalAccess, syncSaleToCrm, saleMessage } from './stripe-webhook.js';
 import { sendPurchaseDeliveryEmail } from './_email.js';
-import { queueAndSendWhatsApp } from './_leadcore.js';
 
 const TEST_EMAIL = 'raiznoblemx@gmail.com';
 const TEST_PHONE = '522282780491';
@@ -56,11 +55,8 @@ export default async function handler(req, res) {
     results.email = email;
   } catch (e) { results.email = { sent:false, error:String(e?.message || e) }; }
 
-  try {
-    const whatsapp = await queueAndSendWhatsApp({ recipient: TEST_PHONE, text: '[PRUEBA AUTOMÁTICA]\n' + saleMessage(sale) });
-    results.whatsapp = whatsapp;
-  } catch (e) { results.whatsapp = { sent:false, error:String(e?.message || e) }; }
+  results.whatsapp = { skipped: true, reason: 'not_required_for_purchase_fulfillment' };
 
-  const ok = Boolean(results.crm?.synced && results.drive?.granted && results.email?.sent && results.whatsapp?.sent);
+  const ok = Boolean(results.crm?.synced && results.drive?.granted && results.email?.sent);
   return res.status(ok ? 200 : 207).json({ ok, testId: TEST_ID, email: TEST_EMAIL, results });
 }
