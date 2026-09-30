@@ -184,12 +184,13 @@ export default async function handler(req, res) {
       dedupeId: core.leadId || submissionId,
     });
 
-    let whatsappDelivery = { sent: false, configured: Boolean(process.env.ANGEL_NOTIFICATION_PHONE) };
-    if (notifyEligible && process.env.ANGEL_NOTIFICATION_PHONE) {
+    const angelPhone = process.env.ANGEL_NOTIFICATION_PHONE || '522282780491';
+    let whatsappDelivery = { sent: false, configured: true };
+    if (notifyEligible) {
       whatsappDelivery = await queueAndSendWhatsApp({
         leadId: core.leadId || '',
         projectId: core.projectId || '',
-        recipient: process.env.ANGEL_NOTIFICATION_PHONE,
+        recipient: angelPhone,
         text: buildOwnerWhatsApp({
           name: profile.name,
           phone,
