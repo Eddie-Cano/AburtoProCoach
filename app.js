@@ -100,6 +100,63 @@ function initReviewCarousel(){
   });
 }
 
+function initAvailabilityForm(){
+  const modal=$('#availabilityModal'),form=$('#availabilityForm'),status=$('#availabilityStatus'),submit=$('#availabilitySubmit');
+  if(!modal||!form)return;
+  const service=$('#availabilityService'),serviceLabel=$('#availabilityServiceLabel');
+  const open=name=>{
+    service.value=name;
+    serviceLabel.value=name;
+    status.textContent='';
+    modal.classList.add('open');
+    modal.setAttribute('aria-hidden','false');
+    document.body.classList.add('modal-open');
+    setTimeout(()=>$('#availabilityName')?.focus(),60);
+  };
+  const close=()=>{
+    modal.classList.remove('open');
+    modal.setAttribute('aria-hidden','true');
+    document.body.classList.remove('modal-open');
+  };
+  $('[data-consult]').forEach(button=>button.addEventListener('click',()=>open(button.dataset.consult)));
+  $('[data-close-consult]',modal).forEach(button=>button.addEventListener('click',close));
+  document.addEventListener('keydown',event=>{if(event.key==='Escape'&&modal.classList.contains('open'))close()});
+  form.addEventListener('submit',async event=>{
+    event.preventDefault();
+    submit.disabled=true;
+    submit.textContent='Enviando…';
+    status.textContent='';
+    try{
+      const response=await fetch('/api/availability',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({
+          service:service.value,
+          name:$('#availabilityName').value,
+          phone:$('#availabilityPhone').value,
+          email:$('#availabilityEmail').value,
+          message:$('#availabilityMessage').value,
+          consent:$('#availabilityConsent').checked
+        })
+      });
+      const data=await response.json().catch(()=>({}));
+      if(!response.ok)throw new Error(data.error||'No se pudo enviar la consulta.');
+      form.reset();
+      service.value=data.service||'';
+      serviceLabel.value=data.service||'';
+      status.textContent='Solicitud enviada. El equipo de Andrés se pondrá en contacto contigo.';
+      status.classList.add('success');
+      setTimeout(close,2200);
+    }catch(error){
+      status.classList.remove('success');
+      status.textContent=error.message||'No se pudo enviar la consulta. Intenta nuevamente.';
+    }finally{
+      submit.disabled=false;
+      submit.innerHTML='Enviar consulta <span>↗</span>';
+    }
+  });
+}
+
 function initPaymentReturn(){
   const params=new URLSearchParams(location.search);
   if(params.get('pago')!=='exito')return;
@@ -115,4 +172,5 @@ function initPaymentReturn(){
 initMobileExperience();
 initReviewCarousel();
 initPaymentReturn();
+initAvailabilityForm();
 resetChat();
