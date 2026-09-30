@@ -388,7 +388,7 @@ export default async function handler(req, res) {
     utmSource: String(session.metadata?.utm_source || ''),
     utmCampaign: String(session.metadata?.utm_campaign || ''),
     startsAt: process.env.FOUNDING_START_AT || '',
-    endsAt: process.env.FOUNDING_START_AT ? new Date(Date.parse(process.env.FOUNDING_START_AT) + 72 * 3600000).toISOString() : '',
+    endsAt: (process.env.FOUNDING_START_AT || LAUNCH.defaultStartAt) ? new Date(Date.parse(process.env.FOUNDING_START_AT || LAUNCH.defaultStartAt) + LAUNCH.durationHours * 3600000).toISOString() : '',
   };
   job.sale = sale;
   const save = async () => redis('SET', jobKey, JSON.stringify(job));
