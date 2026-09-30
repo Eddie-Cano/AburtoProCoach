@@ -32,7 +32,7 @@ const DIGITAL_DELIVERY = {
 const PRODUCT_NAMES = {
   '5-claves': '5 Claves Antes de Competir',
   '5-claves-antes-de-competir': '5 Claves Antes de Competir',
-  '5-habitos-dia-29': 'Día 29 · 5 Hábitos',
+  '5-habitos-dia-29': 'El Día 29',
   'romantizar-la-prep': 'Romantizar la Prep',
   'coaching-1a1-online': 'Coaching 1 a 1 — Online',
   'coaching-1-a-1-online': 'Coaching 1 a 1 — Online',
