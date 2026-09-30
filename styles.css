@@ -143,3 +143,32 @@
 .prep-cover span{color:#d7a264}
 .product-art[href]{transition:transform .25s,border-color .25s}
 .product-card:hover .product-art[href]{transform:scale(1.01)}
+
+/* Consulta de disponibilidad — servicios */
+.modal-open{overflow:hidden}
+.availability-btn{border:0;cursor:pointer}
+.availability-modal{position:fixed;inset:0;z-index:1200;display:none;align-items:center;justify-content:center;padding:22px}
+.availability-modal.open{display:flex}
+.availability-backdrop{position:absolute;inset:0;background:rgba(0,0,0,.82);backdrop-filter:blur(8px)}
+.availability-dialog{position:relative;z-index:1;width:min(720px,100%);max-height:92vh;overflow:auto;padding:38px;background:#111113;border:1px solid #38383e;box-shadow:0 30px 100px rgba(0,0,0,.5)}
+.availability-dialog h2{margin:8px 0 12px;font-size:clamp(42px,6vw,68px)}
+.availability-intro{max-width:590px;margin:0 0 24px}
+.availability-close{position:absolute;right:14px;top:10px;width:42px;height:42px;border:0;background:transparent;color:#fff;font-size:30px;cursor:pointer}
+.availability-form{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.availability-form label{display:flex;flex-direction:column;gap:7px;color:#ddd;font-size:12px;font-weight:700}
+.availability-form .full{grid-column:1/-1}
+.availability-form input,.availability-form textarea{width:100%;padding:13px 14px;border:1px solid #414147;background:#17171a;color:#fff;font:inherit;outline:none}
+.availability-form input:focus,.availability-form textarea:focus{border-color:var(--red)}
+.availability-form input[readonly]{color:#aaa;background:#0c0c0e}
+.availability-form textarea{resize:vertical;min-height:125px}
+.availability-consent{flex-direction:row!important;align-items:flex-start;gap:10px!important;font-weight:500!important;color:#aaa!important}
+.availability-consent input{width:auto;margin-top:2px}
+.availability-status{min-height:18px;margin:0;color:#ffb0b0;font-size:12px}
+.availability-status.success{color:#b9f6c7}
+.availability-form .btn:disabled{opacity:.55;cursor:wait}
+@media(max-width:620px){
+  .availability-modal{padding:10px}
+  .availability-dialog{padding:28px 18px 22px}
+  .availability-form{grid-template-columns:1fr}
+  .availability-form label,.availability-form .full{grid-column:1}
+}
