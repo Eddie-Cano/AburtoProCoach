@@ -6,6 +6,9 @@
   "engines": {
     "node": ">=20"
   },
+  "scripts": {
+    "test": "node --test"
+  },
   "dependencies": {
     "ai": "^6.0.0",
     "@neondatabase/serverless": "^1.0.0",

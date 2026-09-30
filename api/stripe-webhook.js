@@ -2,6 +2,7 @@ import { createHmac, timingSafeEqual } from 'node:crypto';
 import { getVercelOidcToken } from '@vercel/oidc';
 import { ExternalAccountClient } from 'google-auth-library';
 import { queueAndSendWhatsApp } from './_leadcore.js';
+import { sendPurchaseDeliveryEmail, sendTransactionalEmail } from './_email.js';
 
 export const config = { api: { bodyParser: false } };
 
@@ -91,29 +92,6 @@ async function redis(...command) {
   if (data.error) throw new Error('redis error');
   return data.result;
 }
-
-async function sendEmail({ subject, text, html, eventId, to = [SALES_EMAIL], idempotencyPrefix = 'aburto-sale' }) {
-  if (!process.env.RESEND_API_KEY) return { sent: false, reason: 'resend_not_configured' };
-  const response = await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
-      'Content-Type': 'application/json',
-      'Idempotency-Key': `${idempotencyPrefix}-${eventId}`,
-    },
-    body: JSON.stringify({
-      from: process.env.LEAD_FROM_EMAIL || 'Aburto Pro Coach <onboarding@resend.dev>',
-      to,
-      subject,
-      text,
-      ...(html ? { html } : {}),
-    }),
-    signal: AbortSignal.timeout(8000),
-  });
-  if (!response.ok) throw new Error('email failed');
-  return { sent: true };
-}
-
 
 async function googleAccessToken() {
   const projectNumber = process.env.GCP_PROJECT_NUMBER || '';
@@ -212,42 +190,6 @@ async function revokeDigitalAccess(paymentIntentId) {
   if (result.configured === false) return { revoked: false, reason: 'google_drive_not_configured' };
   await redis('DEL', `aburto:drive-grant:${paymentIntentId}`);
   return { revoked: true, email: grant.email, slug: grant.slug };
-}
-
-async function sendDigitalDeliveryEmail({ sale, delivery, eventId }) {
-  if (!delivery?.granted || !sale.email) {
-    return { sent: false, reason: delivery?.reason || 'delivery_not_granted' };
-  }
-  const text = [
-    `Hola${sale.name ? ` ${sale.name}` : ''},`,
-    '',
-    `Tu compra de ${sale.productName} fue confirmada correctamente.`,
-    '',
-    'Tu acceso está asociado al mismo correo utilizado durante la compra.',
-    `Abrir producto: ${delivery.fileUrl}`,
-    '',
-    'El material es de uso personal. No reenvíes el acceso a terceros.',
-    '',
-    'Aburto Pro Coach',
-  ].join('\n');
-
-  const html = `
-    <div style="font-family:Arial,sans-serif;max-width:620px;margin:auto;line-height:1.55;color:#111">
-      <h2>Tu producto ya está disponible</h2>
-      <p>Hola${sale.name ? ` ${sale.name}` : ''}, tu compra de <strong>${sale.productName}</strong> fue confirmada correctamente.</p>
-      <p>El acceso fue concedido exclusivamente al correo utilizado durante la compra.</p>
-      <p style="margin:28px 0"><a href="${delivery.fileUrl}" style="background:#111;color:#fff;text-decoration:none;padding:14px 20px;border-radius:8px;display:inline-block">ACCEDER A MI PRODUCTO</a></p>
-      <p style="font-size:13px;color:#666">Material de uso personal. El enlace requiere la cuenta de Google autorizada.</p>
-    </div>`;
-
-  return sendEmail({
-    subject: `Tu acceso: ${sale.productName}`,
-    text,
-    html,
-    eventId,
-    to: [sale.email],
-    idempotencyPrefix: 'aburto-delivery',
-  });
 }
 
 async function syncSaleToCrm(sale) {
@@ -403,7 +345,7 @@ export default async function handler(req, res) {
       });
       sale.deliveryStatus = delivery.granted ? 'Drive concedido' : `Pendiente: ${delivery.reason || 'no concedido'}`;
       if (delivery.granted) {
-        customerEmail = await sendDigitalDeliveryEmail({ sale, delivery, eventId: event.id });
+        customerEmail = await sendPurchaseDeliveryEmail({ sale, delivery, eventId: event.id });
         sale.deliveryStatus = customerEmail.sent ? 'Drive + correo enviados' : `Drive concedido; correo pendiente: ${customerEmail.reason || 'no enviado'}`;
       }
     }
@@ -432,10 +374,12 @@ export default async function handler(req, res) {
       `Entrega digital: ${sale.deliveryStatus}`,
     ].join('\n');
 
-    const email = await sendEmail({
+    const email = await sendTransactionalEmail({
       subject: `Nueva venta: ${sale.productName} — $${sale.amountMxn.toLocaleString('es-MX')} MXN`,
       text: emailText,
-      eventId: event.id,
+      to: [SALES_EMAIL],
+      idempotencyKey: `aburto/sale/${event.id}`,
+      tags: [{ name: 'category', value: 'sale_notification' }],
     });
     sale.emailStatus = email.sent ? 'Enviado' : `Pendiente: ${email.reason || 'no enviado'}`;
 

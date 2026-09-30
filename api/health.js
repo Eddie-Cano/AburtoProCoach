@@ -3,6 +3,7 @@ export default function handler(req, res) {
   if (req.method !== 'GET') return res.status(405).json({ ok: false });
 
   const provider = String(process.env.WHATSAPP_PROVIDER || '').toLowerCase();
+  const verifiedSenderConfigured = Boolean(process.env.PURCHASE_FROM_EMAIL || process.env.LEAD_FROM_EMAIL);
   return res.status(200).json({
     ok: true,
     provider,
@@ -15,7 +16,11 @@ export default function handler(req, res) {
     crmWebhookConfigured: Boolean(process.env.GOOGLE_SHEETS_WEBHOOK_URL),
     crmWebhookSecretConfigured: Boolean(process.env.GOOGLE_SHEETS_WEBHOOK_SECRET || process.env.CRM_WEBHOOK_SECRET),
     stripeWebhookConfigured: Boolean(process.env.STRIPE_WEBHOOK_SECRET),
-    buyerEmailConfigured: Boolean(process.env.RESEND_API_KEY && process.env.LEAD_FROM_EMAIL),
+    emailProvider: 'resend',
+    emailApiConfigured: Boolean(process.env.RESEND_API_KEY),
+    verifiedSenderConfigured,
+    buyerEmailConfigured: Boolean(process.env.RESEND_API_KEY && verifiedSenderConfigured),
+    emailReplyConfigured: Boolean(process.env.PURCHASE_REPLY_TO_EMAIL || process.env.REPLY_TO_EMAIL),
     driveDeliveryConfigured: Boolean(
       process.env.GCP_PROJECT_NUMBER && process.env.GCP_WORKLOAD_IDENTITY_POOL_ID &&
       process.env.GCP_WORKLOAD_IDENTITY_POOL_PROVIDER_ID && process.env.GCP_SERVICE_ACCOUNT_EMAIL

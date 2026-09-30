@@ -6,6 +6,7 @@ import {
   saveLeadCore,
   syncLeadToCrm,
 } from './_leadcore.js';
+import { sendTransactionalEmail } from './_email.js';
 
 const hash = text => createHash('sha256').update(text).digest('hex');
 
@@ -23,26 +24,6 @@ async function redis(...command) {
   const data = await response.json();
   if (data.error) throw new Error('storage error');
   return data.result;
-}
-
-async function sendEmail({ to, subject, text, idempotencyKey }) {
-  const response = await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
-      'Content-Type': 'application/json',
-      'Idempotency-Key': idempotencyKey,
-    },
-    body: JSON.stringify({
-      from: process.env.LEAD_FROM_EMAIL || 'Aburto Pro Coach <onboarding@resend.dev>',
-      to: [to],
-      subject,
-      text,
-    }),
-    signal: AbortSignal.timeout(8000),
-  });
-  if (!response.ok) throw new Error('notification unavailable');
-  return true;
 }
 
 function recommendation(profile) {
@@ -197,7 +178,7 @@ export default async function handler(req, res) {
     let userCopySent = false;
     if (isPosingTool && email && process.env.RESEND_API_KEY) {
       try {
-        await sendEmail({
+        const emailResult = await sendTransactionalEmail({
           to: email,
           subject: 'Tu acceso al Posing Lab — Aburto Pro Coach',
           text: [
@@ -212,8 +193,9 @@ export default async function handler(req, res) {
             'Si tú no enviaste esta solicitud, puedes ignorar este mensaje.',
           ].join('\n'),
           idempotencyKey: `aburto-posing-user-${submissionId}`,
+          tags: [{ name: 'category', value: 'posing_lab' }],
         });
-        userCopySent = true;
+        userCopySent = emailResult.sent === true;
       } catch {
         userCopySent = false;
       }
