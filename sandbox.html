@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="es-MX">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Sandbox de pagos | Aburto Pro Coach</title>
+<style>
+body{font-family:system-ui;background:#090909;color:#fff;margin:0;padding:40px 20px}.wrap{max-width:720px;margin:auto}.card{border:1px solid #333;border-radius:18px;padding:28px;background:#111}h1{margin-top:0}label{display:block;margin:20px 0 8px}select,button{width:100%;padding:14px;font:inherit;border-radius:10px}button{margin-top:18px;background:#fff;color:#000;border:0;font-weight:800;cursor:pointer}.note{color:#aaa;line-height:1.5}.status{margin-top:18px;font-weight:700}.ok{color:#86efac}.bad{color:#fca5a5}
+</style>
+</head>
+<body><main class="wrap"><div class="card">
+<p class="note">ENTORNO DE PRUEBA · NO COBRA DINERO REAL</p>
+<h1>Stripe Sandbox</h1>
+<p>Este checkout usa Stripe en modo test y conserva el mismo metadata del flujo real para validar webhook, Google Sheet, Drive, correo y alertas.</p>
+<label for="product">Producto de prueba</label>
+<select id="product">
+<option value="5-claves">5 Claves Antes de Competir — $320 MXN</option>
+<option value="5-habitos-dia-29">El Día 29 — $526 MXN</option>
+<option value="romantizar-la-prep">Romantizar la Prep — $526 MXN</option>
+</select>
+<button id="start" type="button">Abrir checkout Sandbox</button>
+<p class="note">En Stripe usa una tarjeta de prueba oficial, por ejemplo 4242 4242 4242 4242, una fecha futura y cualquier CVC válido.</p>
+<div id="status" class="status" role="status"></div>
+</div></main>
+<script>
+const btn=document.getElementById('start'), status=document.getElementById('status');
+const params=new URLSearchParams(location.search);
+if(params.get('status')==='success'){status.className='status ok';status.textContent='Pago de prueba completado. Ahora verifica webhook, Sheet, Drive, correo y alerta.'}
+if(params.get('status')==='cancelled'){status.className='status bad';status.textContent='Checkout de prueba cancelado.'}
+btn.addEventListener('click',async()=>{
+ btn.disabled=true; status.className='status'; status.textContent='Abriendo Stripe Sandbox…';
+ try{
+   const r=await fetch('/api/checkout-test',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({product:document.getElementById('product').value})});
+   const d=await r.json(); if(!r.ok) throw new Error(d.error||'No se pudo abrir el Sandbox.');
+   const u=new URL(d.url); if(u.hostname!=='checkout.stripe.com') throw new Error('URL de checkout inválida.');
+   location.assign(u.href);
+ }catch(e){status.className='status bad';status.textContent=e.message;btn.disabled=false}
+});
+</script></body></html>
