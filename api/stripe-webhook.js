@@ -174,14 +174,8 @@ export async function grantDigitalAccess({ slug, email, paymentIntentId }) {
 
 async function grantFileAccess({ product, email, paymentIntentId }) {
 
-  const protection = await driveApi(
-    `/files/${product.fileId}?supportsAllDrives=true&fields=id,copyRequiresWriterPermission`,
-    { method: 'PATCH', body: { copyRequiresWriterPermission: true } }
-  );
-  if (protection.configured === false) {
-    return { applicable: true, granted: false, reason: 'google_drive_not_configured' };
-  }
-
+  // Do not modify file copy/download restrictions here. Those settings require
+  // owner/organizer privileges and are unrelated to granting buyer access.
   let existing, pageToken;
   do {
     const listed = await driveApi(`/files/${product.fileId}/permissions?supportsAllDrives=true&fields=nextPageToken,permissions(id,emailAddress,role,type)&pageSize=100${pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : ''}`);
