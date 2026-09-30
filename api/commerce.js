@@ -47,11 +47,12 @@ export default async function handler(req, res) {
     }
     const requestId = reservation?.id || randomUUID();
     const params = {
-      mode: 'payment', locale: 'es', 'payment_method_types[0]': 'card',
+      mode: 'payment', locale: 'es', integration_identifier: 'aburto_qmztvphk',
       'line_items[0][price]': reservation ? LAUNCH.foundingStripePrice : LAUNCH.regularStripePrice,
       'line_items[0][quantity]': '1',
       'metadata[project]': 'andres-aburto', 'metadata[product_slug]': 'starter-pack', 'metadata[kind]': 'digital',
       'metadata[offer]': reservation ? 'founding' : 'regular', 'metadata[reservation_id]': reservation?.id || '',
+      'phone_number_collection[enabled]': 'true',
       'metadata[utm_source]': String(body.utmSource || '').slice(0, 100), 'metadata[utm_campaign]': String(body.utmCampaign || '').slice(0, 100),
       success_url: `${SITE}/compra-confirmada.html`, cancel_url: `${SITE}/productos/starter-pack.html#comprar`,
       ...(reservation ? { expires_at: String(reservation.expiresAt) } : {}),
