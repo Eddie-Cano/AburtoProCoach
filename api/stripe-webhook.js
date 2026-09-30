@@ -230,7 +230,7 @@ async function revokeDigitalAccess(paymentIntentId) {
   return { revoked: true, email: grants[0]?.email, slug: grants.length > 1 ? 'starter-pack' : grants[0]?.slug };
 }
 
-async function syncSaleToCrm(sale) {
+export async function syncSaleToCrm(sale) {
   if (!process.env.GOOGLE_SHEETS_WEBHOOK_URL) {
     return syncSaleToSheet(sale, await googleAccessToken());
   }
@@ -259,7 +259,7 @@ async function syncSaleToCrm(sale) {
   return { synced: true };
 }
 
-function saleMessage(sale) {
+export function saleMessage(sale) {
   return [
     '💰 NUEVA VENTA — ANDRÉS ABURTO',
     '',
