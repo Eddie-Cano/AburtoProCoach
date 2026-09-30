@@ -386,7 +386,7 @@ export default async function handler(req, res) {
     currency: String(session.currency || 'mxn').toUpperCase(),
     paymentStatus: String(session.payment_status || ''),
     createdAt: new Date(Number(session.created || Math.floor(Date.now()/1000)) * 1000).toISOString(),
-    whatsappStatus: 'Pendiente',
+    whatsappStatus: 'No requerido',
     emailStatus: 'Pendiente',
     deliveryStatus: digital ? 'Pendiente' : 'No aplica',
     buyerEmailStatus: digital ? 'Pendiente' : 'No aplica',
@@ -433,12 +433,10 @@ export default async function handler(req, res) {
       await save();
     }
 
-    const whatsapp = job.whatsapp ? { sent: true } : await queueAndSendWhatsApp({
-      recipient: process.env.RAIZ_NOTIFICATION_PHONE || DEFAULT_RAIZ_PHONE,
-      text: saleMessage(sale),
-    });
-    sale.whatsappStatus = whatsapp.sent ? 'Enviado' : `Pendiente: ${whatsapp.reason || 'no enviado'}`;
-    job.whatsapp = whatsapp.sent;
+    // WhatsApp is no longer required for purchase fulfillment.
+    // Purchases are reported through Sheets + email; digital access is delivered by Drive + email.
+    sale.whatsappStatus = 'No requerido';
+    job.whatsapp = true;
     await save();
 
     const emailText = [
@@ -451,7 +449,7 @@ export default async function handler(req, res) {
       '',
       `Cliente: ${sale.name || 'Sin nombre'}`,
       `Correo: ${sale.email || 'No informado'}`,
-      `WhatsApp: ${sale.phone || 'No informado'}`,
+      `Teléfono del cliente: ${sale.phone || 'No informado'}`
       '',
       `Checkout Session: ${sale.checkoutSessionId}`,
       `Payment Link: ${sale.paymentLinkId || 'No disponible'}`,
@@ -460,8 +458,8 @@ export default async function handler(req, res) {
       ...(sale.foundingMember ? [`Founding Member: #${sale.foundingMember.number} / 100`, 'Founding Access: registrado'] : []),
     ].join('\n');
 
-    // The pack uses one Resend email per buyer. Internal alerts remain in
-    // WhatsApp and Sheets; an optional owner copy would double the daily quota.
+    // The pack uses one Resend email per buyer. Internal reporting remains in
+    // Sheets; an optional owner copy would double the daily quota.
     const ownerEmailRequired = slug !== 'starter-pack' || process.env.SEND_PACK_SALES_EMAIL === 'true';
     const email = !ownerEmailRequired || job.ownerEmail ? { sent: true } : await sendTransactionalEmail({
       subject: `Nueva venta: ${sale.productName} — $${sale.amountMxn.toLocaleString('es-MX')} MXN`,
@@ -470,7 +468,7 @@ export default async function handler(req, res) {
       idempotencyKey: `aburto/sale/${session.id}`,
       tags: [{ name: 'category', value: 'sale_notification' }],
     });
-    sale.emailStatus = !ownerEmailRequired ? 'Aviso en Sheets y WhatsApp' : email.sent ? 'Enviado' : `Pendiente: ${email.reason || 'no enviado'}`;
+    sale.emailStatus = !ownerEmailRequired ? 'Registrado en Sheets' : email.sent ? 'Enviado' : `Pendiente: ${email.reason || 'no enviado'}`;
     job.ownerEmail = ownerEmailRequired && email.sent;
     await save();
 
@@ -479,11 +477,10 @@ export default async function handler(req, res) {
     const deliveryRequired = digital;
     const deliveryComplete = !deliveryRequired || (delivery.granted && customerEmail.sent);
 
-    if (!whatsapp.sent || !email.sent || !crm.synced || !deliveryComplete) {
+    if (!email.sent || !crm.synced || !deliveryComplete) {
       try { await redis('DEL', eventKey); } catch {}
       return res.status(503).json({
         error: 'Venta confirmada, pero falta completar una o más entregas.',
-        whatsapp: sale.whatsappStatus,
         email: sale.emailStatus,
         crm: crm.synced ? 'Sincronizado' : crm.reason,
         delivery: sale.deliveryStatus,
