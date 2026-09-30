@@ -5,6 +5,8 @@ import {
   isCoachingLead,
   saveLeadCore,
   syncLeadToCrm,
+  queueAndSendWhatsApp,
+  buildOwnerWhatsApp,
 } from './_leadcore.js';
 import { sendTransactionalEmail } from './_email.js';
 
@@ -62,11 +64,15 @@ export default async function handler(req, res) {
       modality: clean(body?.modality),
       timing: clean(body?.timing),
       name: clean(body?.name).slice(0, 100),
-      contact: clean(body?.contact).slice(0, 200),
+      phone: clean(body?.phone).slice(0, 40),
+      email: clean(body?.email).slice(0, 160),
+      needs: clean(body?.needs).slice(0, 1000),
+      contact: clean(body?.contact).slice(0, 240),
       consent: body?.consent === true ? true : body?.consent === false ? false : null,
     };
 
-    if (profile.name.length < 2 || profile.contact.length < 3) {
+    const submittedContact = [profile.phone, profile.email, profile.contact].filter(Boolean).join(' · ');
+    if (profile.name.length < 2 || submittedContact.length < 3) {
       return res.status(400).json({ error: 'Falta nombre o contacto.' });
     }
 
@@ -80,8 +86,8 @@ export default async function handler(req, res) {
     }
 
     const route = recommendation(profile);
-    const email = extractEmail(profile.contact);
-    const phone = extractPhone(profile.contact);
+    const email = extractEmail(profile.email || profile.contact);
+    const phone = extractPhone(profile.phone || profile.contact);
     const notifyEligible = isCoachingLead(profile);
     const lowerInterest = profile.interest.toLowerCase();
     const isPosingTool = lowerInterest.includes('temporizador') || lowerInterest.includes('posing lab');
@@ -94,6 +100,7 @@ export default async function handler(req, res) {
       `Experiencia: ${profile.experience || 'Por definir'}.`,
       `Modalidad: ${profile.modality || 'Por definir'}.`,
       `Inicio: ${profile.timing || 'Por definir'}.`,
+      `Qué busca / necesita saber: ${profile.needs || 'Por definir'}.`,
       `Ruta sugerida: ${route}.`,
     ].join(' ');
 
@@ -111,6 +118,7 @@ export default async function handler(req, res) {
           experience: profile.experience,
           modality: profile.modality,
           timing: profile.timing,
+          needs: profile.needs,
           recommendation: route,
           notifyEligible,
         },
@@ -165,16 +173,35 @@ export default async function handler(req, res) {
       modality: profile.modality,
       experience: profile.experience,
       timing: profile.timing,
-      message: summary,
+      message: profile.needs || summary,
       route,
       status: 'Nuevo',
       priority: notifyEligible ? 'Alta' : 'Media',
       owner: notifyEligible ? 'Andrés Aburto' : 'Compartido',
       consent: profile.consent === true ? 'Sí' : notifyEligible ? 'Solicitud directa' : '',
       originUrl: req.headers.referer || req.headers.origin || `https://${req.headers.host}`,
-      notes: notifyEligible ? 'Solicitud registrada para seguimiento. WhatsApp reservado a ventas confirmadas por Stripe.' : 'Registro sin alerta de WhatsApp.',
+      notes: notifyEligible ? 'Consulta de disponibilidad registrada por el asistente. Aviso de WhatsApp solicitado para Ángel.' : 'Registro del asistente.',
       dedupeId: core.leadId || submissionId,
     });
+
+    let whatsappDelivery = { sent: false, configured: Boolean(process.env.ANGEL_NOTIFICATION_PHONE) };
+    if (notifyEligible && process.env.ANGEL_NOTIFICATION_PHONE) {
+      whatsappDelivery = await queueAndSendWhatsApp({
+        leadId: core.leadId || '',
+        projectId: core.projectId || '',
+        recipient: process.env.ANGEL_NOTIFICATION_PHONE,
+        text: buildOwnerWhatsApp({
+          name: profile.name,
+          phone,
+          email,
+          interest: profile.interest,
+          modality: profile.modality,
+          timing: profile.timing,
+          summary: profile.needs || summary,
+        }),
+      });
+      whatsappDelivery.configured = true;
+    }
 
     let userCopySent = false;
     if (isPosingTool && email && process.env.RESEND_API_KEY) {
@@ -202,8 +229,6 @@ export default async function handler(req, res) {
       }
     }
 
-    // El asistente nunca dispara WhatsApp. Las alertas de WhatsApp quedan reservadas
-    // exclusivamente para compras confirmadas por Stripe en /api/stripe-webhook.
     const accepted = saved || crmDelivery.synced === true;
     if (!accepted) return res.status(503).json({ error: 'No se pudo procesar la solicitud.' });
 
@@ -215,6 +240,8 @@ export default async function handler(req, res) {
       userCopySent,
       crmSynced: crmDelivery.synced === true,
       crmQueued: crmDelivery.queued === true,
+      whatsappSent: whatsappDelivery.sent === true,
+      whatsappConfigured: whatsappDelivery.configured === true,
     });
   } catch {
     return res.status(503).json({ error: 'No se pudo procesar la solicitud.' });
