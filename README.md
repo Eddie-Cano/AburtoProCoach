@@ -51,6 +51,12 @@ Durante la etapa de pruebas, los registros nuevos de las herramientas y las soli
 
 ## Correo transaccional de compra
 
+### Acceso privado con Google OIDC
+
+La entrega usa `GCP_PROJECT_NUMBER`, `GCP_WORKLOAD_IDENTITY_POOL_ID`, `GCP_WORKLOAD_IDENTITY_POOL_PROVIDER_ID` y `GCP_SERVICE_ACCOUNT_EMAIL`. El correo debe ser el de la cuenta de servicio (`.iam.gserviceaccount.com`), no una API key. No requiere una clave privada JSON.
+
+En el proveedor Google Workload Identity, la audiencia permitida del token Vercel es `https://vercel.com/raiz-noble`. La audiencia del intercambio STS identifica al proveedor Google y es un valor diferente. La cuenta de servicio necesita la vinculación Workload Identity User para el proyecto y entorno autorizados, acceso de editor a los tres PDF y las APIs Drive e IAM Service Account Credentials habilitadas. El token de la cuenta de servicio solicita el alcance Drive para gestionar permisos de lector. Las ventas siguen usando el webhook de Google Sheets, que se configura por separado.
+
 La entrega de productos digitales usa Resend desde funciones de Vercel. La plantilla en `api/_email.js` agradece la compra, identifica el producto, muestra el botón de acceso privado de Google Drive y, cuando `TELEGRAM_WAITLIST_URL` está configurada, ofrece el registro voluntario a la lista de espera. Cada envío usa una clave de idempotencia basada en el evento de pago para impedir duplicados durante reintentos.
 
 Variables de producción:
