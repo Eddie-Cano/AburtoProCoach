@@ -107,7 +107,7 @@ export function createDriveAuthClient(env = process.env) {
 
   // STS identifies the Google provider here. The Vercel JWT audience is separate
   // and must be allowed by that provider (https://vercel.com/<team-slug>).
-  const audience = `//iam.googleapis.com/projects/${projectNumber}/locations/global/workloadIdentityPools/${poolId}/providers/${providerId}`;
+  const audience = `https://iam.googleapis.com/projects/${projectNumber}/locations/global/workloadIdentityPools/${poolId}/providers/${providerId}`;
 
   return ExternalAccountClient.fromJSON({
     type: 'external_account',
@@ -118,7 +118,7 @@ export function createDriveAuthClient(env = process.env) {
       `https://iamcredentials.googleapis.com/v1/projects/-/serviceAccounts/${serviceAccountEmail}:generateAccessToken`,
     scopes: ['https://www.googleapis.com/auth/drive', 'https://www.googleapis.com/auth/spreadsheets'],
     subject_token_supplier: {
-      getSubjectToken: () => getVercelOidcToken(),
+      getSubjectToken: () => getVercelOidcToken({ audience }),
     },
   });
 }
