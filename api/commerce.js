@@ -25,6 +25,7 @@ export default async function handler(req, res) {
     const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body || {};
     const email = String(body.email || '').trim().toLowerCase();
     if (body.product !== 'starter-pack' || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254) return res.status(400).json({ error: 'Escribe un correo válido.' });
+    if (body.acceptedConfidentiality !== true) return res.status(400).json({ error: 'Debes aceptar el Aviso de Privacidad y el Acuerdo de Confidencialidad.' });
     if (!offer.checkoutReady) return res.status(409).json({ error: 'La compra todavía no está disponible. Consulta la fecha de apertura.', offer });
     const ip = String(req.headers['x-forwarded-for'] || 'unknown').split(',')[0];
     const rateKey = `aburto:checkout-rate:${createHash('sha256').update(ip).digest('hex')}:${Math.floor(Date.now() / 3600000)}`;
@@ -51,6 +52,7 @@ export default async function handler(req, res) {
       'line_items[0][price]': reservation ? LAUNCH.foundingStripePrice : LAUNCH.regularStripePrice,
       'line_items[0][quantity]': '1',
       'metadata[project]': 'andres-aburto', 'metadata[product_slug]': 'starter-pack', 'metadata[kind]': 'digital',
+      'metadata[legal_acceptance]': 'privacy_confidentiality_v1', 'metadata[legal_accepted_at]': new Date().toISOString(),
       'metadata[offer]': reservation ? 'founding' : 'regular', 'metadata[reservation_id]': reservation?.id || '',
       'phone_number_collection[enabled]': 'true',
       'metadata[utm_source]': String(body.utmSource || '').slice(0, 100), 'metadata[utm_campaign]': String(body.utmCampaign || '').slice(0, 100),
