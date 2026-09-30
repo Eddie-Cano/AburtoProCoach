@@ -51,6 +51,8 @@ async function createStripeCheckout(product, slug, body, req) {
     'metadata[project]': 'andres-aburto',
     'metadata[product_slug]': slug,
     'metadata[kind]': 'digital',
+    'metadata[legal_acceptance]': 'privacy_confidentiality_v1',
+    'metadata[legal_accepted_at]': new Date().toISOString(),
     'metadata[utm_source]': String(body.utmSource || '').slice(0, 100),
     'metadata[utm_campaign]': String(body.utmCampaign || '').slice(0, 100),
     integration_identifier: 'aburto_qmztvphk',
@@ -83,6 +85,9 @@ export default async function handler(req, res) {
     const slug = String(body.product || '');
     const product = PRODUCTS[slug];
     if (!product) return res.status(400).json({ error: 'Producto no válido.' });
+    if (body.acceptedConfidentiality !== true) {
+      return res.status(400).json({ error: 'Debes aceptar el Aviso de Privacidad y el Acuerdo de Confidencialidad.' });
+    }
 
     const url = await createStripeCheckout(product, slug, body, req);
     return res.status(200).json({ url });
