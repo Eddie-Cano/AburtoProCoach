@@ -449,7 +449,7 @@ export default async function handler(req, res) {
       '',
       `Cliente: ${sale.name || 'Sin nombre'}`,
       `Correo: ${sale.email || 'No informado'}`,
-      `Teléfono del cliente: ${sale.phone || 'No informado'}`
+      `Teléfono del cliente: ${sale.phone || 'No informado'}`,
       '',
       `Checkout Session: ${sale.checkoutSessionId}`,
       `Payment Link: ${sale.paymentLinkId || 'No disponible'}`,
