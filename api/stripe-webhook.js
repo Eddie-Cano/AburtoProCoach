@@ -284,12 +284,16 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Método no permitido.' });
 
   let event;
+  let sandboxSignature = false;
   try {
     const body = await rawBody(req);
     const signature = String(req.headers['stripe-signature'] || '');
-    if (!verifyStripeSignature(body, signature, process.env.STRIPE_WEBHOOK_SECRET || '')) {
+    const liveValid = verifyStripeSignature(body, signature, process.env.STRIPE_WEBHOOK_SECRET || '');
+    const testValid = verifyStripeSignature(body, signature, process.env.STRIPE_TEST_WEBHOOK_SECRET || '');
+    if (!liveValid && !testValid) {
       return res.status(400).json({ error: 'Firma inválida.' });
     }
+    sandboxSignature = !liveValid && testValid;
     event = JSON.parse(body.toString('utf8'));
   } catch {
     return res.status(400).json({ error: 'Webhook inválido.' });
@@ -297,7 +301,7 @@ export default async function handler(req, res) {
 
   if (['charge.refunded', 'charge.dispute.created'].includes(event.type)) {
     const charge = event?.data?.object || {};
-    if (charge.livemode !== true) return res.status(200).json({ received: true, ignored: true });
+    if (charge.livemode !== true) return res.status(200).json({ received: true, sandbox: sandboxSignature, ignored: true });
     if (event.type === 'charge.refunded' && Number(charge.amount_refunded) < Number(charge.amount)) return res.status(200).json({ received: true, partialRefund: true });
     const paymentIntentId = String(charge.payment_intent || '');
     try {
@@ -330,12 +334,14 @@ export default async function handler(req, res) {
   }
 
   const session = event?.data?.object || {};
-  if (session.livemode !== true || session.metadata?.project !== 'andres-aburto') {
+  const sandbox = sandboxSignature && session.livemode === false && session.metadata?.sandbox_test === 'true';
+  const live = !sandboxSignature && session.livemode === true;
+  if ((!live && !sandbox) || session.metadata?.project !== 'andres-aburto') {
     return res.status(200).json({ received: true, ignored: true });
   }
   if (event.type === 'checkout.session.expired') {
     try {
-      if (session.metadata.reservation_id) await releaseReservation(session.metadata.reservation_id, session.id);
+      if (!sandbox && session.metadata.reservation_id) await releaseReservation(session.metadata.reservation_id, session.id);
       return res.status(200).json({ received: true, expired: true });
     } catch { return res.status(503).json({ error: 'No se pudo liberar el lugar reservado.' }); }
   }
@@ -348,10 +354,10 @@ export default async function handler(req, res) {
   if (!process.env.UPSTASH_REDIS_REST_URL || !process.env.UPSTASH_REDIS_REST_TOKEN) {
     return res.status(503).json({ error: 'El registro de acceso digital no está configurado.' });
   }
-  if (slug === 'starter-pack' && (session.currency !== 'mxn' || Number(session.amount_total) !== (session.metadata.offer === 'founding' ? LAUNCH.foundingPrice : LAUNCH.regularPrice))) return res.status(400).json({ error: 'El importe no corresponde a la oferta.' });
+  if (!sandbox && slug === 'starter-pack' && (session.currency !== 'mxn' || Number(session.amount_total) !== (session.metadata.offer === 'founding' ? LAUNCH.foundingPrice : LAUNCH.regularPrice))) return res.status(400).json({ error: 'El importe no corresponde a la oferta.' });
 
-  const eventKey = `aburto:fulfillment-lock:${session.id}`;
-  const jobKey = `aburto:fulfillment:${session.id}`;
+  const eventKey = `aburto:${sandbox ? 'sandbox:' : ''}fulfillment-lock:${session.id}`;
+  const jobKey = `aburto:${sandbox ? 'sandbox:' : ''}fulfillment:${session.id}`;
   let job;
   try {
     if (await redis('GET', `aburto:revoked-payment:${session.payment_intent}`)) return res.status(200).json({ received: true, revoked: true });
@@ -364,13 +370,13 @@ export default async function handler(req, res) {
   }
 
   const sale = job.sale || {
-    saleId: `SALE-${String(session.id || event.id).replace(/^cs_/, '').slice(0, 18)}`,
+    saleId: `${sandbox ? 'TEST' : 'SALE'}-${String(session.id || event.id).replace(/^cs_/, '').slice(0, 18)}`,
     eventId: String(event.id || ''),
     checkoutSessionId: String(session.id || ''),
     paymentLinkId: String(session.payment_link || ''),
     paymentIntentId: String(session.payment_intent || ''),
     productSlug: slug,
-    productName: PRODUCT_NAMES[slug] || slug,
+    productName: `${sandbox ? '[SANDBOX] ' : ''}${PRODUCT_NAMES[slug] || slug}`,
     kind: digital ? 'digital' : String(session.metadata?.kind || 'service'),
     name: String(session.customer_details?.name || session.customer_details?.individual_name || ''),
     email: String(session.customer_details?.email || session.customer_email || ''),
@@ -383,7 +389,7 @@ export default async function handler(req, res) {
     emailStatus: 'Pendiente',
     deliveryStatus: digital ? 'Pendiente' : 'No aplica',
     buyerEmailStatus: digital ? 'Pendiente' : 'No aplica',
-    offer: String(session.metadata?.offer || ''),
+    offer: sandbox ? 'sandbox' : String(session.metadata?.offer || ''),
     products: deliveryProducts(slug).map(file => file.name),
     utmSource: String(session.metadata?.utm_source || ''),
     utmCampaign: String(session.metadata?.utm_campaign || ''),
@@ -394,8 +400,8 @@ export default async function handler(req, res) {
   const save = async () => redis('SET', jobKey, JSON.stringify(job));
 
   try {
-    if (slug === 'starter-pack' && !sale.foundingMember) sale.foundingMember = await confirmMember(session, event.created);
-    await redis('SET', `aburto:payment-session:${sale.paymentIntentId}`, session.id);
+    if (!sandbox && slug === 'starter-pack' && !sale.foundingMember) sale.foundingMember = await confirmMember(session, event.created);
+    await redis('SET', `aburto:${sandbox ? 'sandbox:' : ''}payment-session:${sale.paymentIntentId}`, session.id);
     // Record confirmed payment and membership before side effects. Later retries
     // update this row with delivery and email progress rather than adding a sale.
     if (!job.recorded) {
