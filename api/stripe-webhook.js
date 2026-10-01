@@ -236,34 +236,44 @@ export default async function handler(req, res) {
 
   if (['charge.refunded', 'charge.dispute.created'].includes(event.type)) {
     const charge = event?.data?.object || {};
-    if (charge.livemode !== true) return res.status(200).json({ received: true, sandbox: sandboxSignature, ignored: true });
+    if (charge.livemode !== true || sandboxSignature) return res.status(200).json({ received: true, ignored: true });
     if (event.type === 'charge.refunded' && Number(charge.amount_refunded) < Number(charge.amount)) return res.status(200).json({ received: true, partialRefund: true });
-    const paymentIntentId = String(charge.payment_intent || '');
     try {
+      const paymentIntentId = String(charge.payment_intent || '');
       if (!paymentIntentId) return res.status(200).json({ received: true, ignored: true });
-      await redis('SET', `aburto:revoked-payment:${paymentIntentId}`, event.type);
-      const revoked = await revokeDigitalAccess(paymentIntentId);
-      const sessionId = await redis('GET', `aburto:payment-session:${paymentIntentId}`);
-      if (sessionId) {
-        const jobKey = `aburto:fulfillment:${sessionId}`;
-        const job = JSON.parse(await redis('GET', jobKey) || 'null');
-        if (job?.sale) {
-          job.sale.paymentStatus = event.type === 'charge.refunded' ? 'Reembolsado' : 'En disputa';
-          job.sale.deliveryStatus = 'Acceso revocado';
-          if (job.sale.foundingMember) {
-            job.sale.foundingMember.active = false;
-            await redis('HSET', foundingKeys[0], emailHash(job.sale.email), JSON.stringify(job.sale.foundingMember));
-          }
-          await syncSaleToCrm(job.sale);
-          await redis('SET', jobKey, JSON.stringify(job));
-        }
-      }
-      return res.status(200).json({ received: true, accessRevocation: revoked });
-    } catch {
-      return res.status(503).json({ error: 'No se pudo revocar el acceso digital.' });
+      const token = await googleAccessToken();
+      const row = await findSaleByPaymentIntent(paymentIntentId, token);
+      if (!row) return res.status(503).json({ error: 'Venta pendiente de conciliación antes de registrar el reembolso.' });
+      const kind = event.type === 'charge.refunded' ? 'Reembolsado' : 'En disputa';
+      const updates = [
+        { range: `'Ventas'!N${row.rowNumber}`, values: [[kind]] },
+        { range: `'Ventas'!AB${row.rowNumber}`, values: [['Revisión manual de acceso a Drive']] },
+        { range: `'Ventas'!AH${row.rowNumber}`, values: [[`${kind} — verificar permisos de otros pagos antes de revocar`]] },
+      ];
+      const response = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${CRM_SHEET_ID}/values:batchUpdate`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ valueInputOption: 'RAW', data: updates }),
+        signal: AbortSignal.timeout(12000),
+      });
+      if (!response.ok) throw new Error('Failed to record refund status');
+      // A customer may own multiple purchases for the same PDF. Flag revocation for review.
+      await sendTransactionalEmail({
+        to: [SALES_EMAIL],
+        subject: `Revisar acceso a Drive: ${kind} — Aburto Pro Coach`,
+        text: [`Evento: ${event.type}`, `Stripe Payment Intent: ${paymentIntentId}`,
+          `Comprador: ${row.email}`, `Producto: ${row.productSlug}`,
+          'Revisar compras vigentes antes de quitar permisos en Drive.',
+          `Google Sheet: https://docs.google.com/spreadsheets/d/${CRM_SHEET_ID}/edit`].join('\n'),
+        idempotencyKey: `aburto/refund/${paymentIntentId}/${event.type}`,
+        tags: [{ name: 'category', value: 'refund_review' }],
+      });
+      return res.status(200).json({ received: true, manualReview: true });
+    } catch (error) {
+      console.error('Refund review registration failed:', error?.message);
+      return res.status(503).json({ error: 'No se pudo registrar el reembolso en Sheets.' });
     }
   }
-
   if (!['checkout.session.completed', 'checkout.session.async_payment_succeeded', 'checkout.session.expired'].includes(event.type)) {
     return res.status(200).json({ received: true, ignored: true });
   }
@@ -274,21 +284,13 @@ export default async function handler(req, res) {
   if ((!live && !sandbox) || session.metadata?.project !== 'andres-aburto') {
     return res.status(200).json({ received: true, ignored: true });
   }
-  if (event.type === 'checkout.session.expired') {
-    try {
-      if (!sandbox && session.metadata.reservation_id) await releaseReservation(session.metadata.reservation_id, session.id);
-      return res.status(200).json({ received: true, expired: true });
-    } catch { return res.status(503).json({ error: 'No se pudo liberar el lugar reservado.' }); }
-  }
+  if (event.type === 'checkout.session.expired') return res.status(200).json({ received: true, expired: true });
   if (!['paid', 'no_payment_required'].includes(String(session.payment_status || ''))) {
     return res.status(200).json({ received: true, pending: true });
   }
 
   const slug = String(session.metadata?.product_slug || 'venta');
   const digital = deliveryProducts(slug).length > 0;
-  if (!process.env.UPSTASH_REDIS_REST_URL || !process.env.UPSTASH_REDIS_REST_TOKEN) {
-    return res.status(503).json({ error: 'El registro de acceso digital no está configurado.' });
-  }
   if (!sandbox && slug === 'starter-pack' && (session.currency !== 'mxn' || Number(session.amount_total) !== (session.metadata.offer === 'founding' ? LAUNCH.foundingPrice : LAUNCH.regularPrice))) return res.status(400).json({ error: 'El importe no corresponde a la oferta.' });
 
   const eventKey = `aburto:${sandbox ? 'sandbox:' : ''}fulfillment-lock:${session.id}`;
