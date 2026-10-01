@@ -84,12 +84,27 @@ const ranges={
   waitlist:"'Lista de espera — Telegram'!A1:L2500",
   settings:"'Configuración lanzamiento'!A1:C15"
 };
-async function readSheet(token,range){
-  const url=`https://sheets.googleapis.com/v4/spreadsheets/${CRM_SHEET_ID}/values/${encodeURIComponent(range)}`;
-  const response=await fetch(url,{headers:{Authorization:`Bearer ${token}`},signal:AbortSignal.timeout(12000)});
-  if(!response.ok) throw Error(`Google Sheets error ${response.status}`);
-  const json=await response.json();
-  return json.values||[];
+// Una sola solicitud agrupada reduce el consumo de cuota de Google Sheets.
+async function readDashboardSheets(token) {
+  const query = new URLSearchParams();
+  for (const range of Object.values(ranges)) query.append('ranges', range);
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${CRM_SHEET_ID}/values:batchGet?${query}`;
+  for (let attempt = 0; attempt < 4; attempt++) {
+    const response = await fetch(url, {
+      headers: { Authorization: `Bearer ${token}` },
+      signal: AbortSignal.timeout(12000),
+    });
+    if (response.ok) {
+      const data = await response.json();
+      const result = data.valueRanges || [];
+      if (result.length !== Object.keys(ranges).length) throw new Error('Respuesta incompleta de Google Sheets');
+      return result.map(item => item.values || []);
+    }
+    if (![429, 500, 502, 503].includes(response.status) || attempt === 3)
+      throw new Error(`Google Sheets error ${response.status}`);
+    const delay = [700, 1800, 3800][attempt];
+    await new Promise(resolve => setTimeout(resolve, delay));
+  }
 }
 const cell=(row,i)=>String(row?.[i]??'').trim();
 const isoDate=x=>{const d=new Date(x);return Number.isNaN(d.getTime())?'':d.toISOString().slice(0,10);};
@@ -101,7 +116,7 @@ async function handleDashboardStats(req,res){
   try{
     const token=await googleAccessToken();
     if(!token) return res.status(503).json({error:'Sin acceso a Google Sheets.'});
-    const [allSales,allFounders,allLeads,allWaitlist,allSettings]=await Promise.all(Object.values(ranges).map(r=>readSheet(token,r)));
+    const [allSales,allFounders,allLeads,allWaitlist,allSettings]=await readDashboardSheets(token);
     const paid=allSales.slice(1).filter(r=>
       cell(r,3).startsWith('cs_') &&
       !cell(r,6).startsWith('[SANDBOX]') &&
