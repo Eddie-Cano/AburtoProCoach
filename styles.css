@@ -172,3 +172,29 @@
   .availability-form{grid-template-columns:1fr}
   .availability-form label,.availability-form .full{grid-column:1}
 }
+
+
+/* Lista de espera de la comunidad — cierre de la página principal */
+.community-signup{position:relative;overflow:hidden;background:radial-gradient(ellipse at 18% 24%,rgba(149,31,41,.24),transparent 54%),linear-gradient(135deg,#141215,#09090b 64%);border-top:1px solid #342529;border-bottom:1px solid #342529}
+.community-signup-layout{display:grid;grid-template-columns:1fr minmax(320px,.87fr);gap:clamp(28px,6vw,95px);align-items:center}
+.community-signup-copy h2{font-size:clamp(45px,5.8vw,91px);line-height:.88;letter-spacing:-.045em;margin:18px 0 28px}
+.community-signup-copy h2 span{color:#db5667}
+.community-signup-copy p{max-width:470px;color:#c5bfc1;line-height:1.75;font-size:14px}
+.community-signup-copy small{display:block;margin-top:26px;max-width:460px;color:#929095;font-size:11px;line-height:1.8}
+.community-signup-note{display:flex;flex-wrap:wrap;gap:10px;margin-top:25px}
+.community-signup-note span{padding:9px 12px;border:1px solid #533339;color:#e7d6d9;font:700 9px Arial,sans-serif;letter-spacing:.09em;text-transform:uppercase}
+.community-signup-panel{background:#171316;border:1px solid #603840;padding:clamp(24px,3vw,42px);box-shadow:0 25px 80px #0006}
+.community-signup-panel h3{font-size:clamp(33px,3vw,48px);line-height:1;margin:12px 0 26px}
+.community-signup-form{display:flex;flex-direction:column;gap:9px}
+.community-signup-form>label:not(.community-signup-consent){color:#e7e0e1;font-size:11px;font-weight:800;letter-spacing:.05em;margin-top:9px}
+.community-signup-form>input{background:#0b0a0c;border:1px solid #51474a;min-height:49px;padding:12px 14px;width:100%;border-radius:2px;color:#fff;font:14px Arial,sans-serif}
+.community-signup-form>input:focus{outline:2px solid #bc5260;outline-offset:2px}
+.community-signup-consent{display:flex;align-items:flex-start;gap:12px;margin:16px 0 7px;color:#b5a9ad;font:12px/1.65 Arial,sans-serif}
+.community-signup-consent input{margin:4px 0 0;flex-shrink:0;accent-color:#b72d43}
+.community-signup-consent a{color:#ec9eaa}
+.community-signup-button{border:0;width:100%;text-align:center;cursor:pointer;min-height:53px}
+.community-signup-button:disabled{opacity:.55;cursor:wait}
+.community-signup-status{min-height:22px;color:#ffb7bd;font:700 12px/1.6 Arial,sans-serif;margin:7px 0 0}
+.community-signup-status.success{color:#a8eec0}
+@media(max-width:850px){.community-signup-layout{grid-template-columns:1fr;gap:34px}.community-signup-copy h2{font-size:clamp(49px,8vw,74px)}}
+@media(max-width:520px){.community-signup-note{gap:7px}.community-signup-note span{font-size:8px}.community-signup-panel{padding:23px 18px}.community-signup-copy h2{font-size:clamp(43px,11vw,60px)}}
