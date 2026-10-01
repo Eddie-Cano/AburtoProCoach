@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { googleAccessToken } from './stripe-webhook.js';
 import { CRM_SHEET_ID } from '../lib/crm.js';
 
@@ -35,7 +36,7 @@ export default async function handler(req, res) {
     const now = new Date().toISOString();
     const source = clean(body.source, 60) || 'Correo post-compra';
     const row = [
-      `TG-${crypto.randomUUID()}`,now,name,email,phone,
+      `TG-${randomUUID()}`,now,name,email,phone,
       clean(body.product, 120) || 'Productos digitales Aburto', '',
       source, 'En lista de espera', '', 'Sí', 'Alta voluntaria desde aburtoprocoach.com'
     ];
