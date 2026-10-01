@@ -293,20 +293,24 @@ export default async function handler(req, res) {
   const digital = deliveryProducts(slug).length > 0;
   if (!sandbox && slug === 'starter-pack' && (session.currency !== 'mxn' || Number(session.amount_total) !== (session.metadata.offer === 'founding' ? LAUNCH.foundingPrice : LAUNCH.regularPrice))) return res.status(400).json({ error: 'El importe no corresponde a la oferta.' });
 
-  const eventKey = `aburto:${sandbox ? 'sandbox:' : ''}fulfillment-lock:${session.id}`;
-  const jobKey = `aburto:${sandbox ? 'sandbox:' : ''}fulfillment:${session.id}`;
-  let job;
+  const ownerEmailRequired = slug !== 'starter-pack' || process.env.SEND_PACK_SALES_EMAIL === 'true';
+  let previous;
   try {
-    if (await redis('GET', `aburto:revoked-payment:${session.payment_intent}`)) return res.status(200).json({ received: true, revoked: true });
-    job = JSON.parse(await redis('GET', jobKey) || '{}');
-    if (job.done) return res.status(200).json({ received: true, duplicate: true });
-    const lock = await redis('SET', eventKey, 'processing', 'NX', 'EX', 180);
-    if (lock === null) return res.status(503).json({ error: 'La compra está siendo procesada.' });
-  } catch {
-    return res.status(503).json({ error: 'No se pudo asegurar la deduplicación.' });
+    const token = await googleAccessToken();
+    if (!token) throw new Error('Google authentication is missing');
+    previous = await findSaleBySession(String(session.id || ''), token);
+    if (previous && ['Reembolsado', 'En disputa'].includes(previous.paymentStatus)) {
+      return res.status(200).json({ received: true, revoked: true });
+    }
+    if (fullyDelivered(previous, digital, ownerEmailRequired)) {
+      return res.status(200).json({ received: true, duplicate: true });
+    }
+  } catch (error) {
+    console.error('Could not check paid Stripe session in Sheets:', error?.message);
+    return res.status(503).json({ error: 'No se pudo verificar el estado de la compra.' });
   }
 
-  const sale = job.sale || {
+  const sale = {
     saleId: `${sandbox ? 'TEST' : 'SALE'}-${String(session.id || event.id).replace(/^cs_/, '').slice(0, 18)}`,
     eventId: String(event.id || ''),
     checkoutSessionId: String(session.id || ''),
@@ -321,59 +325,41 @@ export default async function handler(req, res) {
     amountMxn: Number(session.amount_total || 0) / 100,
     currency: String(session.currency || 'mxn').toUpperCase(),
     paymentStatus: String(session.payment_status || ''),
-    createdAt: new Date(Number(session.created || Math.floor(Date.now()/1000)) * 1000).toISOString(),
+    createdAt: new Date(Number(session.created || Math.floor(Date.now() / 1000)) * 1000).toISOString(),
     whatsappStatus: 'No requerido',
-    emailStatus: 'Pendiente',
-    deliveryStatus: digital ? 'Pendiente' : 'No aplica',
-    buyerEmailStatus: digital ? 'Pendiente' : 'No aplica',
+    emailStatus: previous?.values?.[16] || 'Pendiente',
+    deliveryStatus: previous?.deliveryStatus || (digital ? 'Pendiente' : 'No aplica'),
+    buyerEmailStatus: previous?.buyerEmailStatus || (digital ? 'Pendiente' : 'No aplica'),
     offer: sandbox ? 'sandbox' : String(session.metadata?.offer || ''),
     products: deliveryProducts(slug).map(file => file.name),
     utmSource: String(session.metadata?.utm_source || ''),
     utmCampaign: String(session.metadata?.utm_campaign || ''),
-    startsAt: process.env.FOUNDING_START_AT || '',
-    endsAt: (process.env.FOUNDING_START_AT || LAUNCH.defaultStartAt) ? new Date(Date.parse(process.env.FOUNDING_START_AT || LAUNCH.defaultStartAt) + LAUNCH.durationHours * 3600000).toISOString() : '',
+    startsAt: '',
+    endsAt: '',
   };
-  job.sale = sale;
-  const save = async () => redis('SET', jobKey, JSON.stringify(job));
 
   try {
-    if (!sandbox && slug === 'starter-pack' && !sale.foundingMember) sale.foundingMember = await confirmMember(session, event.created);
-    await redis('SET', `aburto:${sandbox ? 'sandbox:' : ''}payment-session:${sale.paymentIntentId}`, session.id);
-    // Record confirmed payment and membership before side effects. Later retries
-    // update this row with delivery and email progress rather than adding a sale.
-    if (!job.recorded) {
-      const recorded = await syncSaleToCrm(sale);
-      if (!recorded.synced) throw new Error('Confirmed sale could not be recorded');
-      job.recorded = true;
-      await save();
-    }
-    let delivery = job.delivery || { applicable: false, granted: false };
-    let customerEmail = { sent: Boolean(job.buyerEmail) || !digital, reason: 'not_applicable' };
+    // The Stripe signature has been verified. Sheets rows are keyed by Checkout Session ID.
+    const recorded = await syncSaleToCrm(sale);
+    if (!recorded.synced) throw new Error('Sale was not recorded in Sheets');
+    let delivery = { applicable: false, granted: false };
+    let customerEmail = { sent: !digital || previous?.buyerEmailStatus === 'Enviado' };
     if (digital) {
-      delivery = await grantDigitalAccess({
-        slug,
-        email: sale.email,
-        paymentIntentId: sale.paymentIntentId,
-      });
-      job.delivery = delivery;
-      sale.deliveries = deliveryProducts(slug).map(file => ({ slug: file.slug, status: delivery.granted || delivery.files?.some(grant => grant.slug === file.slug && grant.permissionId) ? 'Drive concedido' : 'Pendiente' }));
+      delivery = await grantDigitalAccess({ slug, email: sale.email, paymentIntentId: sale.paymentIntentId });
+      sale.deliveries = deliveryProducts(slug).map(file => ({
+        slug: file.slug,
+        status: delivery.granted || delivery.files?.some(grant => grant.slug === file.slug && grant.permissionId)
+          ? 'Drive concedido' : 'Pendiente',
+      }));
       sale.deliveryStatus = delivery.granted ? 'Drive concedido' : `Pendiente: ${delivery.reason || 'no concedido'}`;
-      await save();
-      if (delivery.granted && !job.buyerEmail) {
-        customerEmail = await sendPurchaseDeliveryEmail({ sale, delivery, eventId: event.id });
-        sale.deliveryStatus = customerEmail.sent ? 'Drive + correo enviados' : `Drive concedido; correo pendiente: ${customerEmail.reason || 'no enviado'}`;
-      }
-      job.buyerEmail = customerEmail.sent;
+      if (!delivery.granted) throw new Error('Drive permission pending');
+      if (!customerEmail.sent) customerEmail = await sendPurchaseDeliveryEmail({ sale, delivery, eventId: event.id });
       sale.buyerEmailStatus = customerEmail.sent ? 'Enviado' : 'Pendiente';
-      if (customerEmail.sent) sale.deliveryStatus = 'Drive + correo enviados';
-      await save();
+      sale.deliveryStatus = customerEmail.sent ? 'Drive + correo enviados' : 'Drive concedido; correo pendiente';
+      const updated = await syncSaleToCrm(sale);
+      if (!updated.synced) throw new Error('Delivery result not saved in Sheets');
+      if (!customerEmail.sent) throw new Error('Buyer delivery email pending');
     }
-
-    // WhatsApp is no longer required for purchase fulfillment.
-    // Purchases are reported through Sheets + email; digital access is delivered by Drive + email.
-    sale.whatsappStatus = 'No requerido';
-    job.whatsapp = true;
-    await save();
 
     const emailText = [
       'Nueva venta confirmada — Andrés Aburto Pro Coach',
@@ -385,51 +371,31 @@ export default async function handler(req, res) {
       '',
       `Cliente: ${sale.name || 'Sin nombre'}`,
       `Correo: ${sale.email || 'No informado'}`,
-      `Teléfono del cliente: ${sale.phone || 'No informado'}`,
+      `Teléfono: ${sale.phone || 'No informado'}`,
       '',
       `Checkout Session: ${sale.checkoutSessionId}`,
-      `Payment Link: ${sale.paymentLinkId || 'No disponible'}`,
-      `Payment Intent: ${sale.paymentIntentId || 'No disponible'}`,
+      `Payment Intent: ${sale.paymentIntentId}`,
       `Entrega digital: ${sale.deliveryStatus}`,
-      ...(sale.foundingMember ? [`Founding Member: #${sale.foundingMember.number} / 100`, 'Founding Access: registrado'] : []),
+      ...(sale.offer === 'founding' ? ['Founding 100: pendiente asignación manual de número en Google Sheets'] : []),
     ].join('\n');
-
-    // The pack uses one Resend email per buyer. Internal reporting remains in
-    // Sheets; an optional owner copy would double the daily quota.
-    const ownerEmailRequired = slug !== 'starter-pack' || process.env.SEND_PACK_SALES_EMAIL === 'true';
-    const email = !ownerEmailRequired || job.ownerEmail ? { sent: true } : await sendTransactionalEmail({
-      subject: `Nueva venta: ${sale.productName} — $${sale.amountMxn.toLocaleString('es-MX')} MXN`,
-      text: emailText,
-      to: [SALES_EMAIL],
-      idempotencyKey: `aburto/sale/${session.id}`,
-      tags: [{ name: 'category', value: 'sale_notification' }],
-    });
-    sale.emailStatus = !ownerEmailRequired ? 'Registrado en Sheets' : email.sent ? 'Enviado' : `Pendiente: ${email.reason || 'no enviado'}`;
-    job.ownerEmail = ownerEmailRequired && email.sent;
-    await save();
-
-    const crm = await syncSaleToCrm(sale);
-
-    const deliveryRequired = digital;
-    const deliveryComplete = !deliveryRequired || (delivery.granted && customerEmail.sent);
-
-    if (!email.sent || !crm.synced || !deliveryComplete) {
-      try { await redis('DEL', eventKey); } catch {}
-      return res.status(503).json({
-        error: 'Venta confirmada, pero falta completar una o más entregas.',
-        email: sale.emailStatus,
-        crm: crm.synced ? 'Sincronizado' : crm.reason,
-        delivery: sale.deliveryStatus,
-      });
-    }
-
-    job.done = true;
-    await save();
-    await redis('DEL', eventKey);
+    const ownerEmail = !ownerEmailRequired || previous?.values?.[16] === 'Enviado'
+      ? { sent: true }
+      : await sendTransactionalEmail({
+          subject: `Nueva venta: ${sale.productName} — $${sale.amountMxn.toLocaleString('es-MX')} MXN`,
+          text: emailText,
+          to: [SALES_EMAIL],
+          idempotencyKey: `aburto/sale/${session.id}`,
+          tags: [{ name: 'category', value: 'sale_notification' }],
+        });
+    sale.emailStatus = !ownerEmailRequired ? 'Registrado en Sheets' : ownerEmail.sent ? 'Enviado' : 'Pendiente';
+    if (!ownerEmail.sent) throw new Error('Owner notification pending');
+    const finalSave = await syncSaleToCrm(sale);
+    if (!finalSave.synced) throw new Error('Final sale state was not saved in Sheets');
     return res.status(200).json({ received: true, saleId: sale.saleId, crmSynced: true });
-  } catch {
-    try { await save(); if (job.recorded) await syncSaleToCrm(sale); } catch {}
-    try { await redis('DEL', eventKey); } catch {}
-    return res.status(503).json({ error: 'No se pudo completar la notificación de venta.' });
+  } catch (error) {
+    console.error('Stripe purchase processing needs retry:', error?.message);
+    try { await syncSaleToCrm(sale); } catch {}
+    // Return non-2xx so Stripe retries. Resend uses per-session idempotency keys.
+    return res.status(503).json({ error: 'Pago confirmado; entrega pendiente. Se reintentará automáticamente.' });
   }
 }
