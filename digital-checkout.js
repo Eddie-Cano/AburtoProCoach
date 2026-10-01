@@ -23,8 +23,8 @@
         body: JSON.stringify({
           product: button.dataset.digitalCheckout,
           acceptedConfidentiality: true,
-          utmSource: new URLSearchParams(location.search).get('utm_source') || '',
-          utmCampaign: new URLSearchParams(location.search).get('utm_campaign') || '',
+          utmSource: window.AbProAnalytics?.getCampaign().source || new URLSearchParams(location.search).get('utm_source') || '',
+          utmCampaign: window.AbProAnalytics?.getCampaign().campaign || new URLSearchParams(location.search).get('utm_campaign') || '',
         }),
       });
       const data = await response.json().catch(() => ({}));
