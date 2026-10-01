@@ -2,7 +2,6 @@
   const money = cents => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', minimumFractionDigits: cents % 100 ? 2 : 0 }).format(cents / 100);
   const form = document.querySelector('[data-checkout-form]');
   let offer = null;
-  let serverOffset = 0;
   function text(selector, value) { document.querySelectorAll(selector).forEach(node => { node.textContent = value; }); }
   function message(value, error = false) {
     const node = document.querySelector('[data-checkout-status]');
@@ -10,11 +9,10 @@
   }
   function render(data) {
     offer = data;
-    serverOffset = Date.parse(data.serverNow) - Date.now();
     text('[data-pack-price]', money(data.price));
     text('[data-pack-discount]', `${data.discountPercent}%${data.stage === 'regular' ? ' aprox.' : ''} de descuento`);
-    const status = !data.configured ? 'Lanzamiento en preparación. La fecha de apertura se anunciará aquí.'
-      : data.stage === 'scheduled' ? 'Apertura próxima. La ventana de lanzamiento comienza en la fecha oficial.'
+    const status = !data.configured ? 'Lanzamiento en preparación. La apertura será manual.'
+      : data.stage === 'scheduled' ? 'La venta se habilitará cuando el equipo abra Founding 100.'
       : data.stage === 'reserved' ? 'Los lugares disponibles están en proceso de pago. Vuelve a consultar en unos minutos.'
       : data.stage === 'regular' ? 'La edición Founding 100 ha cerrado. El Starter Pack continúa por $1,050 MXN.'
       : 'Registro Founding 100 abierto · Cupos administrados manualmente.';
@@ -80,5 +78,4 @@
   });
   refresh();
   setInterval(refresh, 30000);
-  setInterval(tick, 1000);
 })();
