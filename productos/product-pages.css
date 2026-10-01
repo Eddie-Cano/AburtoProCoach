@@ -10,3 +10,10 @@
 .legal-consent a:hover,.legal-consent a:focus-visible{color:#fff;text-decoration-color:#c67384}
 .legal-consent:focus-within{border-color:#77535c}
 @media(max-width:760px){.legal-consent{padding:13px 14px;font-size:11px;margin-top:18px}}
+
+/* Aviso informativo sutil sobre métodos de pago diferidos */
+.payment-delay-note{max-width:660px;margin:13px auto 18px;padding:11px 14px;border:1px solid #343136;border-radius:6px;background:#151417;color:#a9a4a8;font:400 11px/1.65 Arial,sans-serif;text-align:left;letter-spacing:0}
+.payment-delay-note strong{color:#d6cfd1;font-weight:700}
+.payment-delay-note>span{margin-right:5px;color:#a49b9e}
+.checkout-form .payment-delay-note{margin:4px 0 12px;max-width:100%}
+.confirmation .payment-delay-note{max-width:680px;margin:20px 0;padding:15px 18px}
