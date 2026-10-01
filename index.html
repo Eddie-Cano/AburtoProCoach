@@ -92,12 +92,72 @@
       <article class="review-card" data-review><div class="review-stars" aria-label="5 de 5 estrellas">★★★★★</div><blockquote>“He tenido un avance en mi físico en solo un par de meses que pareciera ser de un año.”</blockquote><div class="review-meta"><strong>Julio Farfán</strong><span>Junio 2026 · Seguimiento personalizado</span></div></article>
       <article class="review-card" data-review><div class="review-stars" aria-label="5 de 5 estrellas">★★★★★</div><blockquote>“Si realmente te tomas en serio competir o llevar tu físico al siguiente nivel, estás en las manos correctas con Andrés.”</blockquote><div class="review-meta"><strong>Alejandra Pacheco</strong><span>Junio 2026 · Preparación competitiva</span></div></article>
     </div><div class="reviews-actions"><a class="btn" href="https://btstvonline.com/directory/andr-s-aburto" target="_blank" rel="noopener noreferrer">Dejar una reseña en BTS TV <span>↗</span></a><a class="reviews-source" href="https://btstvonline.com/directory/andr-s-aburto" target="_blank" rel="noopener noreferrer">Ver las 22 reseñas y la ficha verificada <span>↗</span></a></div><p class="reviews-note">Extractos breves de reseñas públicas. En la ficha de BTS TV, selecciona “Leave a review” para compartir tu experiencia.</p></div></div></section>
+    <section class="community-signup section" id="comunidad" aria-labelledby="community-signup-title">
+      <div class="wrap community-signup-layout">
+        <div class="community-signup-copy reveal">
+          <div class="ey">Comunidad Aburto / Próximamente</div>
+          <h2 id="community-signup-title">NO ENTRENES<br>SOLO. <span>EVOLUCIONA<br>EN COMUNIDAD.</span></h2>
+          <p>Estamos preparando la comunidad de Andrés Aburto. Regístrate en la lista de espera y recibe por correo la invitación cuando abramos.</p>
+          <div class="community-signup-note"><span>01 · Registro gratuito</span><span>02 · Invitación por correo</span><span>03 · Sin compra obligatoria</span></div>
+          <small>Registrarte no da acceso inmediato a Telegram. Solo te contactaremos con información relacionada con la comunidad.</small>
+        </div>
+        <div class="community-signup-panel reveal">
+          <div class="ey">Asegura tu lugar en la lista</div>
+          <h3>QUIERO ESTAR<br>EN LA LISTA.</h3>
+          <form id="communitySignupForm" class="community-signup-form">
+            <label for="communityName">Nombre completo</label><input id="communityName" name="name" autocomplete="name" placeholder="Tu nombre" maxlength="100" required>
+            <label for="communityEmail">Correo electrónico</label><input id="communityEmail" name="email" type="email" autocomplete="email" placeholder="tucorreo@ejemplo.com" maxlength="254" required>
+            <label for="communityPhone">WhatsApp con código de país</label><input id="communityPhone" name="phone" type="tel" autocomplete="tel" placeholder="+52 123 456 7890" maxlength="35" required>
+            <label class="community-signup-consent"><input type="checkbox" name="consent" required><span>Autorizo que Aburto Pro Coach use mis datos para avisarme sobre la lista de espera y la apertura de la comunidad. Puedo solicitar mi baja escribiendo a <a href="mailto:raiznoblemx@gmail.com">raiznoblemx@gmail.com</a>.</span></label>
+            <button class="btn community-signup-button" type="submit">UNIRME A LA LISTA DE ESPERA <span aria-hidden="true">↗</span></button>
+            <p class="community-signup-status" id="communitySignupStatus" role="status" aria-live="polite"></p>
+          </form>
+        </div>
+      </div>
+    </section>
   </main>
   <footer><div class="wrap foot"><div><img src="assets/logo/aburto-original.png" alt="Aburto Pro Coach"><p>Entrenamiento · Nutrición deportiva · Preparación competitiva · Productos digitales</p></div><div class="foot-links"><a href="https://www.instagram.com/andrsaburto/" target="_blank" rel="noopener noreferrer">Instagram ↗</a><a href="https://www.facebook.com/AndrsAburto/" target="_blank" rel="noopener noreferrer">Facebook ↗</a><a href="https://www.youtube.com/playlist?list=PLniGQ9qtA22QjJPaUe4OXGNr6SyT06GJ4" target="_blank" rel="noopener noreferrer">YouTube ↗</a></div></div><div class="wrap copyright"><span>© 2026 Andrés Aburto Pro Coach.</span><span>Primera capa digital · Nuevas experiencias en desarrollo.</span></div></footer>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
   <script src="app.js" defer></script>
   <script src="launch.js" defer></script>
   <script src="tools.js" type="module"></script>
+  <script>
+    (() => {
+      const form = document.getElementById('communitySignupForm');
+      const status = document.getElementById('communitySignupStatus');
+      if (!form || !status) return;
+      form.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        if (!form.reportValidity()) return;
+        const button = form.querySelector('button[type="submit"]');
+        button.disabled = true;
+        status.textContent = 'Registrando tu solicitud…';
+        status.classList.remove('success');
+        const fields = new FormData(form);
+        try {
+          const response = await fetch('/api/community-waitlist', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              name: fields.get('name'), email: fields.get('email'), phone: fields.get('phone'),
+              consent: fields.get('consent') === 'on', source: 'Página web — Comunidad'
+            })
+          });
+          const result = await response.json();
+          if (!response.ok) throw new Error(result.error || 'No fue posible completar el registro.');
+          status.textContent = result.alreadyRegistered
+            ? '¡Ya estás en nuestra lista de espera! Te avisaremos por correo.'
+            : '¡Registro recibido! Te avisaremos cuando abramos la comunidad.';
+          status.classList.add('success');
+          if (!result.alreadyRegistered) form.reset();
+        } catch (error) {
+          status.textContent = error.message || 'No fue posible registrarte. Intenta más tarde.';
+        } finally {
+          button.disabled = false;
+        }
+      });
+    })();
+  </script>
   <!-- deploy-sync: responsive mobile hero/menu + high-resolution product covers -->
 </body>
 </html>
