@@ -198,3 +198,10 @@
 .community-signup-status.success{color:#a8eec0}
 @media(max-width:850px){.community-signup-layout{grid-template-columns:1fr;gap:34px}.community-signup-copy h2{font-size:clamp(49px,8vw,74px)}}
 @media(max-width:520px){.community-signup-note{gap:7px}.community-signup-note span{font-size:8px}.community-signup-panel{padding:23px 18px}.community-signup-copy h2{font-size:clamp(43px,11vw,60px)}}
+
+/* Footer legal: secondary navigation, never competing with CTAs */
+.copyright a{color:#999399;text-decoration:none;transition:color .2s}
+.copyright a:hover,.copyright a:focus-visible{color:#ebe4e7}
+.community-signup-consent{border:1px solid #41353a;border-radius:7px;background:#161216;padding:13px 14px;font-size:11px;line-height:1.65}
+.community-signup-consent a{color:#d6bcc2;text-decoration:underline;text-decoration-color:#6b545b;text-underline-offset:2px}
+.community-signup-consent a:hover,.community-signup-consent a:focus-visible{color:#fff}
