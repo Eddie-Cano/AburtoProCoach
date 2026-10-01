@@ -24,10 +24,10 @@ export default function handler(req, res) {
     emailReplyConfigured: Boolean(process.env.PURCHASE_REPLY_TO_EMAIL || process.env.REPLY_TO_EMAIL),
     driveDeliveryConfigured: Boolean(
       process.env.GCP_PROJECT_NUMBER && process.env.GCP_WORKLOAD_IDENTITY_POOL_ID &&
-      process.env.GCP_WORKLOAD_IDENTITY_POOL_PROVIDER_ID && process.env.GCP_SERVICE_ACCOUNT_EMAIL
+      process.env.GCP_WORKLOAD_IDENTITY_POOL_PROVIDER_ID && (process.env.GCP_SERVICE_ACCOUNT_EMAIL || process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL)
     ),
     foundingCapacity: 100,
-    foundingDurationHours: 72,
+    foundingDurationHours: 120,
     foundingStartConfigured: Number.isFinite(Date.parse(process.env.FOUNDING_START_AT || '')),
     packCheckoutConfigured: Boolean(process.env.STRIPE_SECRET_KEY && process.env.STRIPE_WEBHOOK_SECRET && redisConfigured()),
     timestamp: new Date().toISOString(),
