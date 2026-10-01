@@ -28,7 +28,8 @@ test('escapes customer-controlled values and rejects unsafe delivery URLs', () =
   assert.doesNotMatch(email.html, /<script>/);
   assert.match(email.html, /&lt;script&gt;/);
   assert.match(email.html, /Libro &amp; guía/);
-  assert.doesNotMatch(email.html, /Comunidad Aburto/);
+  assert.match(email.html, /Comunidad Aburto/);
+  assert.match(email.html, /comunidad-espera\.html/);
   assert.throws(() => buildPurchaseDeliveryEmail({ fileUrl: 'javascript:alert(1)' }));
 });
 
