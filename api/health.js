@@ -45,6 +45,7 @@ export default async function handler(req, res) {
     buyerEmailConfigured,
     emailReplyConfigured: Boolean(process.env.PURCHASE_REPLY_TO_EMAIL || process.env.REPLY_TO_EMAIL),
     driveDeliveryConfigured,
+    analyticsReadConfigured: Boolean(String(process.env.VERCEL_ANALYTICS_TOKEN || '').trim()),
     foundingCapacity: 100,
     foundingControl: 'manual_google_sheets',
     foundingDurationHours: null,
