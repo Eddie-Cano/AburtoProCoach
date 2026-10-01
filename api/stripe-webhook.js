@@ -16,20 +16,20 @@ const DEFAULT_RAIZ_PHONE = '522282780491';
 
 const DIGITAL_DELIVERY = {
   '5-claves': {
-    fileId: '1jaemoMFdRP071LhxvVQybJ2RsoaO8nEx',
-    url: 'https://drive.google.com/file/d/1jaemoMFdRP071LhxvVQybJ2RsoaO8nEx/view',
+    fileId: '1nLlZJqc6Z0PWgF3Ba2ZVRNJnB-jhDmZX',
+    url: 'https://drive.google.com/file/d/1nLlZJqc6Z0PWgF3Ba2ZVRNJnB-jhDmZX/view',
   },
   '5-claves-antes-de-competir': {
-    fileId: '1jaemoMFdRP071LhxvVQybJ2RsoaO8nEx',
-    url: 'https://drive.google.com/file/d/1jaemoMFdRP071LhxvVQybJ2RsoaO8nEx/view',
+    fileId: '1nLlZJqc6Z0PWgF3Ba2ZVRNJnB-jhDmZX',
+    url: 'https://drive.google.com/file/d/1nLlZJqc6Z0PWgF3Ba2ZVRNJnB-jhDmZX/view',
   },
   '5-habitos-dia-29': {
-    fileId: '1Nh14AYtgo22X8_v6WoCxCP2mk5VbNvHm',
-    url: 'https://drive.google.com/file/d/1Nh14AYtgo22X8_v6WoCxCP2mk5VbNvHm/view',
+    fileId: '1kCBeH1GCDlCKwisuImkvFZ6XPAP3YU9R',
+    url: 'https://drive.google.com/file/d/1kCBeH1GCDlCKwisuImkvFZ6XPAP3YU9R/view',
   },
   'romantizar-la-prep': {
-    fileId: '1XU6KOeaVOpWJsiUnV7iS7RGQ-c48Wa8n',
-    url: 'https://drive.google.com/file/d/1XU6KOeaVOpWJsiUnV7iS7RGQ-c48Wa8n/view',
+    fileId: '1Se6_demNzrfofYmlg5zlWkm7CGZsin-H',
+    url: 'https://drive.google.com/file/d/1Se6_demNzrfofYmlg5zlWkm7CGZsin-H/view',
   },
 };
 
