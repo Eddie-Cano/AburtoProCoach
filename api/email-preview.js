@@ -23,7 +23,7 @@ export default function handler(req, res) {
       files: PACK_PRODUCTS.map(file => ({ name: file.name, fileUrl: 'https://drive.google.com/' })),
       ...(key === 'founding-100' ? { foundingMember: { active: true, number: 1 } } : {}),
     } : {}),
-    telegramWaitlistUrl: process.env.TELEGRAM_WAITLIST_URL || '',
+    telegramWaitlistUrl: process.env.TELEGRAM_WAITLIST_URL || 'https://www.aburtoprocoach.com/comunidad-espera.html',
   });
 
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
