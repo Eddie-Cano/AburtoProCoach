@@ -17,10 +17,10 @@
       : data.stage === 'scheduled' ? 'Apertura próxima. La ventana de lanzamiento comienza en la fecha oficial.'
       : data.stage === 'reserved' ? 'Los lugares disponibles están en proceso de pago. Vuelve a consultar en unos minutos.'
       : data.stage === 'regular' ? 'La edición Founding 100 ha cerrado. El Starter Pack continúa por $1,050 MXN.'
-      : `${data.remaining} lugares disponibles · ${data.confirmed} miembros confirmados de 100.`;
+      : 'Registro Founding 100 abierto · Cupos administrados manualmente.';
     text('[data-offer-status]', status);
-    text('[data-confirmed-members]', data.configured ? `${data.confirmed}/100` : '100');
-    text('[data-members-label]', data.configured ? 'miembros confirmados' : 'miembros en esta edición');
+    text('[data-confirmed-members]', '100');
+    text('[data-members-label]', 'plazas máximas · control manual');
     const button = form?.querySelector('button[type="submit"]');
     if (button) {
       button.disabled = !data.checkoutReady;
@@ -35,12 +35,7 @@
   }
   function tick() {
     if (!offer) return;
-    if (!offer.configured || offer.stage === 'scheduled') return text('[data-launch-clock]', 'Apertura');
-    if (offer.stage === 'regular') return text('[data-launch-clock]', 'Cerrado');
-    const seconds = Math.max(0, Math.floor((Date.parse(offer.endsAt) - Date.now() - serverOffset) / 1000));
-    const hours = Math.floor(seconds / 3600), minutes = Math.floor(seconds % 3600 / 60);
-    text('[data-launch-clock]', `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`);
-    if (!seconds && offer.stage !== 'regular') refresh();
+    text('[data-launch-clock]', offer.stage === 'regular' ? 'Edición cerrada' : offer.stage === 'founding' ? 'Abierto' : 'Próximamente');
   }
   async function refresh() {
     try {
