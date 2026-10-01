@@ -6,6 +6,7 @@ import {dashboardConfigured,checkDashboardCredentials,dashboardCookie,dashboardC
 export default async function handler(req, res) {
   if (req.query?.dashboard === 'auth') return handleDashboardAuth(req,res);
   if (req.query?.dashboard === 'stats') return handleDashboardStats(req,res);
+  if (req.query?.dashboard === 'traffic') return handleDashboardTraffic(req,res);
   res.setHeader('Cache-Control', 'no-store');
   if (req.method !== 'GET') return res.status(405).json({ ok: false });
 
@@ -158,5 +159,82 @@ async function handleDashboardStats(req,res){
   }catch(error){
     console.error('dashboard stats:',error?.message);
     return res.status(503).json({error:'No pudimos cargar los datos. Intenta nuevamente.'});
+  }
+}
+
+
+/* Dashboard-only proxy for aggregated Web Analytics: private token never reaches the browser. */
+const ANALYTICS_PROJECT_ID = 'prj_kNMgCXsFfCKXtQrfH71zc3N3yqUW';
+const ANALYTICS_TEAM_ID = 'team_eCJ1Cx04udAnpF218fCP4z5B';
+let cachedTraffic = null;
+let cachedTrafficUntil = 0;
+
+async function queryWebAnalytics(token,endpoint,parameters={}) {
+  const query = new URLSearchParams({
+    projectId:ANALYTICS_PROJECT_ID,
+    teamId:ANALYTICS_TEAM_ID,
+    ...parameters
+  });
+  const response=await fetch(
+    'https://api.vercel.com/v1/query/web-analytics/visits/'+endpoint+'?'+query.toString(),
+    {headers:{Authorization:'Bearer '+token,Accept:'application/json'},signal:AbortSignal.timeout(8000)}
+  );
+  if (!response.ok) throw new Error('Vercel Analytics HTTP '+response.status);
+  return (await response.json()).data;
+}
+const trafficRows=(rows,dimension)=>Array.isArray(rows)?rows.slice(0,10).map(row=>({
+  name:String(row[dimension]||'Sin identificar'),
+  visitors:Number(row.visitors)||0,
+  pageviews:Number(row.pageviews)||0
+})):[];
+async function handleDashboardTraffic(req,res) {
+  if(req.method!=='GET')return res.status(405).json({error:'Método no permitido.'});
+  if(!requireDashboard(req,res))return;
+  const token=String(process.env.VERCEL_ANALYTICS_TOKEN||'').trim();
+  if(!token)return res.status(200).json({
+    configured:false,
+    message:'Activa Web Analytics en Vercel y configura VERCEL_ANALYTICS_TOKEN en Production.'
+  });
+  if(cachedTraffic && Date.now()<cachedTrafficUntil)return res.status(200).json(cachedTraffic);
+  try {
+    const since=new Date(Date.now()-29*86400000).toISOString().slice(0,10);
+    const until=new Date().toISOString().slice(0,10);
+    const range={since,until};
+    const reports=await Promise.allSettled([
+      queryWebAnalytics(token,'count'),
+      queryWebAnalytics(token,'aggregate',{...range,by:'day',limit:'35'}),
+      queryWebAnalytics(token,'aggregate',{...range,by:'country',limit:'8'}),
+      queryWebAnalytics(token,'aggregate',{...range,by:'referrerHostname',limit:'8'}),
+      queryWebAnalytics(token,'aggregate',{...range,by:'requestPath',limit:'8'}),
+      queryWebAnalytics(token,'aggregate',{...range,by:'deviceType',limit:'5'})
+    ]);
+    const success=index=>reports[index].status==='fulfilled'?reports[index].value:null;
+    const errors=reports.filter(p=>p.status==='rejected').map(p=>String(p.reason?.message||'')).slice(0,2);
+    const total=success(0);
+    if(!total && !success(1)&&!success(2))
+      return res.status(200).json({configured:true,available:false,message:errors[0]||'Analytics no está disponible todavía.'});
+    const days=Array.isArray(success(1))?success(1).map(row=>({
+      date:String(row.timestamp||'').slice(0,10),
+      visitors:Number(row.visitors)||0,
+      pageviews:Number(row.pageviews)||0
+    })).filter(row=>row.date):[];
+    const payload={
+      configured:true,available:true,
+      period:{since,until,dayCount:30},
+      totals:total?{visitors:Number(total.visitors)||0,pageviews:Number(total.pageviews)||0}:null,
+      days,
+      countries:trafficRows(success(2),'country'),
+      referrers:trafficRows(success(3),'referrerHostname'),
+      pages:trafficRows(success(4),'requestPath'),
+      devices:trafficRows(success(5),'deviceType'),
+      partial:errors.length>0,
+      updatedAt:new Date().toISOString()
+    };
+    cachedTraffic=payload;
+    cachedTrafficUntil=Date.now()+120000;
+    return res.status(200).json(payload);
+  }catch(error) {
+    console.error('Web Analytics read unavailable:',error?.message);
+    return res.status(200).json({configured:true,available:false,message:'No fue posible consultar Web Analytics.'});
   }
 }
