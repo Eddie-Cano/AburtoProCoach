@@ -4,7 +4,7 @@ import { ExternalAccountClient } from 'google-auth-library';
 import { queueAndSendWhatsApp } from './_leadcore.js';
 import { sendPurchaseDeliveryEmail, sendTransactionalEmail } from './_email.js';
 import { PACK_PRODUCTS, LAUNCH } from '../lib/launch-config.js';
-import { confirmMember, releaseReservation, emailHash, foundingKeys } from '../lib/founding.js';
+import { findSaleBySession, findSaleByPaymentIntent, fullyDelivered } from '../lib/purchase-ledger.js';
 import { syncSaleToSheet, saleValues } from '../lib/crm.js';
 
 export const config = { api: { bodyParser: false } };
@@ -78,25 +78,6 @@ function verifyStripeSignature(body, signature, secret) {
   });
 }
 
-async function redis(...command) {
-  if (!process.env.UPSTASH_REDIS_REST_URL || !process.env.UPSTASH_REDIS_REST_TOKEN) {
-    return null;
-  }
-  const response = await fetch(process.env.UPSTASH_REDIS_REST_URL, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${process.env.UPSTASH_REDIS_REST_TOKEN}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(command),
-    signal: AbortSignal.timeout(8000),
-  });
-  if (!response.ok) throw new Error('redis unavailable');
-  const data = await response.json();
-  if (data.error) throw new Error('redis error');
-  return data.result;
-}
-
 export function createDriveAuthClient(env = process.env) {
   const projectNumber = env.GCP_PROJECT_NUMBER || '';
   const poolId = env.GCP_WORKLOAD_IDENTITY_POOL_ID || '';
@@ -154,77 +135,36 @@ export function deliveryProducts(slug) {
   return slug === 'starter-pack' ? PACK_PRODUCTS : DIGITAL_DELIVERY[slug] ? [{ ...DIGITAL_DELIVERY[slug], slug, name: PRODUCT_NAMES[slug] }] : [];
 }
 
+// Permissions are checked before being granted; repeated Stripe events reuse the existing permission.
 export async function grantDigitalAccess({ slug, email, paymentIntentId }) {
   const products = deliveryProducts(slug);
   if (!products.length) return { applicable: false, granted: false };
   if (!email || !paymentIntentId) return { applicable: true, granted: false, reason: 'missing_customer_or_payment' };
-  const key = `aburto:drive-grant:${paymentIntentId}`;
-  const saved = JSON.parse(await redis('GET', key) || 'null');
-  const grants = saved ? (Array.isArray(saved) ? saved : [saved]) : [];
+  const grantedFiles = [];
   for (const product of products) {
-    if (grants.some(grant => grant.fileId === product.fileId && grant.permissionId)) continue;
-    const granted = await grantFileAccess({ product, email, paymentIntentId });
-    if (!granted.granted) return { applicable: true, granted: false, reason: granted.reason, files: grants };
-    grants.push({ ...granted, slug: product.slug, name: product.name, email });
-    await redis('SET', key, JSON.stringify(grants));
+    const grant = await grantFileAccess({ product, email });
+    if (!grant.granted) return { applicable: true, granted: false, reason: grant.reason, files: grantedFiles };
+    grantedFiles.push({ ...grant, slug: product.slug, name: product.name, email });
   }
   return { applicable: true, granted: true, fileUrl: products[0].url,
     files: products.map(product => ({ name: product.name, fileUrl: product.url, slug: product.slug })) };
 }
 
-async function grantFileAccess({ product, email, paymentIntentId }) {
-
-  // Do not modify file copy/download restrictions here. Those settings require
-  // owner/organizer privileges and are unrelated to granting buyer access.
+async function grantFileAccess({ product, email }) {
   let existing, pageToken;
   do {
     const listed = await driveApi(`/files/${product.fileId}/permissions?supportsAllDrives=true&fields=nextPageToken,permissions(id,emailAddress,role,type)&pageSize=100${pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : ''}`);
     existing = listed.data?.permissions?.find(permission => String(permission.emailAddress || '').toLowerCase() === email.toLowerCase());
     pageToken = listed.data?.nextPageToken;
   } while (!existing && pageToken);
-  const ownersKey = `aburto:entitlement:${product.fileId}:${emailHash(email)}`;
-  if (existing && Number(await redis('SCARD', ownersKey)) === 0) await redis('SADD', ownersKey, 'existing-access');
-  const permission = existing ? { data: existing } : await driveApi(
+  const result = existing ? { data: existing } : await driveApi(
     `/files/${product.fileId}/permissions?supportsAllDrives=true&sendNotificationEmail=false&fields=id,emailAddress,role,type`,
-    {
-      method: 'POST',
-      body: { type: 'user', role: 'reader', emailAddress: email },
-    }
+    { method: 'POST', body: { type: 'user', role: 'reader', emailAddress: email } }
   );
-
-  const permissionId = permission.data?.id || '';
+  const permissionId = result.data?.id || '';
   if (!permissionId) throw new Error('Drive permission was not granted');
-  await redis('SADD', ownersKey, paymentIntentId);
-
-  return {
-    applicable: true,
-    granted: true,
-    fileId: product.fileId,
-    fileUrl: product.url,
-    permissionId,
-    ownersKey,
-  };
+  return { applicable: true, granted: true, fileId: product.fileId, fileUrl: product.url, permissionId };
 }
-
-async function revokeDigitalAccess(paymentIntentId) {
-  if (!paymentIntentId) return { revoked: false, reason: 'missing_payment_intent' };
-  const raw = await redis('GET', `aburto:drive-grant:${paymentIntentId}`);
-  if (!raw) return { revoked: false, reason: 'grant_not_found' };
-  const saved = JSON.parse(raw);
-  const grants = Array.isArray(saved) ? saved : [saved];
-  for (const grant of grants) {
-    const ownersKey = grant.ownersKey || `aburto:entitlement:${grant.fileId}:${emailHash(grant.email)}`;
-    if (Number(await redis('SCARD', ownersKey)) > 0) {
-      await redis('SREM', ownersKey, paymentIntentId);
-      if (Number(await redis('SCARD', ownersKey)) > 0) continue;
-    }
-    const result = await driveApi(`/files/${grant.fileId}/permissions/${grant.permissionId}?supportsAllDrives=true`, { method: 'DELETE' });
-    if (result.configured === false) return { revoked: false, reason: 'google_drive_not_configured' };
-  }
-  await redis('DEL', `aburto:drive-grant:${paymentIntentId}`);
-  return { revoked: true, email: grants[0]?.email, slug: grants.length > 1 ? 'starter-pack' : grants[0]?.slug };
-}
-
 export async function syncSaleToCrm(sale) {
   if (!process.env.GOOGLE_SHEETS_WEBHOOK_URL) {
     return syncSaleToSheet(sale, await googleAccessToken());
