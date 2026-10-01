@@ -13,10 +13,19 @@
 <article class="card metric"><label>Entregas pendientes</label><div class="value" id="pending">—</div><p>Accesos digitales por revisar</p></article>
 <article class="card metric"><label>Solicitudes de contacto</label><div class="value" id="leads">—</div><p>Prospectos registrados</p></article>
 <article class="card metric"><label>Comunidad · lista de espera</label><div class="value" id="community">—</div><p>Registros válidos</p></article>
-<article class="card metric"><label>Visitas al sitio</label><div class="value">—</div><p>Requiere integración de Analytics</p></article>
-<article class="card metric"><label>Tasa de conversión</label><div class="value">—</div><p>Requiere medición de sesiones</p></article></div>
+<article class="card metric"><label>Visitantes del sitio</label><div class="value" id="visitors">—</div><p id="visitsHint">Desde la activación de Analytics</p></article>
+<article class="card metric"><label>Páginas vistas</label><div class="value" id="pageviews">—</div><p>Visitas a páginas públicas</p></article></div>
 <div class="grid two section"><article class="card"><h2>Ingresos por día</h2><div id="daily" class="empty">Todavía no hay ventas confirmadas para graficar.</div></article><article class="card"><h2>Productos vendidos</h2><div class="rows" id="products"><div class="empty">Sin datos.</div></div></article></div>
-<div class="grid two section"><article class="card"><h2>Procedencia de las ventas</h2><div class="rows" id="sources"><div class="empty">Sin campañas registradas.</div></div></article><article class="card"><h2>Audiencia y redes sociales</h2><div class="notice">Las visitas, países, ciudades y tráfico desde Instagram, Facebook, TikTok y Google se mostrarán después de activar Google Analytics 4 o Vercel Analytics. No se inventan datos históricos.</div></article></div>
+<div class="grid two section"><article class="card"><h2>Procedencia de las ventas</h2><div class="rows" id="sources"><div class="empty">Sin campañas registradas.</div></div></article><article class="card"><h2>Audiencia y redes sociales</h2><div id="trafficStatus" class="notice" style="margin:14px 0">Esperando la activación de Vercel Web Analytics.</div>
+  <h3 style="font-size:12px;color:#dbad7a;margin-top:18px">Países · últimos 30 días</h3>
+  <div class="rows" id="trafficCountries"><div class="empty">Sin medición todavía.</div></div>
+  <h3 style="font-size:12px;color:#dbad7a;margin-top:20px">Origen de visitas (referentes)</h3>
+  <div class="rows" id="trafficReferrers"><div class="empty">Sin medición todavía.</div></div>
+  </article></div>
+<div class="grid two section">
+  <article class="card"><h2>Tráfico por día</h2><p style="font-size:12px">Páginas vistas · últimos 30 días</p><div id="trafficDaily" class="empty">Se mostrará después de conectar Analytics.</div></article>
+  <article class="card"><h2>Páginas más visitadas</h2><p style="font-size:12px">Rutas públicas con tráfico</p><div class="rows" id="trafficPages"><div class="empty">Sin datos de visitas.</div></div></article>
+</div>
 <article class="card section"><div class="top"><h2>Últimas compras confirmadas</h2><button id="reload" class="secondary">Actualizar ↻</button></div><div class="tablewrap"><table><thead><tr><th>Fecha</th><th>Producto</th><th>Cliente</th><th>Monto</th><th>Entrega</th><th>Origen</th></tr></thead><tbody id="transactions"></tbody></table></div></article><p class="notice section">Área privada: los datos de clientes no son accesibles sin una sesión válida.</p></section></main>
 <script>
 'use strict';
@@ -25,7 +34,40 @@ const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 async function api(path,options={}){const r=await fetch(path,{cache:'no-store',credentials:'same-origin',...options});let d={};try{d=await r.json()}catch{}if(!r.ok)throw Error(d.error||'No se pudo acceder al servicio.');return d}
 function show(open){$('loginBox').classList.toggle('hide',open);$('panel').classList.toggle('hide',!open);$('logout').classList.toggle('hide',!open)}
 function renderRows(id,rows){$(id).innerHTML=rows?.length?rows.map(v=>'<div><span>'+esc(v.name)+'</span><b>'+Number(v.count)+'</b></div>').join(''):'<div class="empty">Aún no hay datos.</div>'}
-async function load(){$('statsError').classList.add('hide');try{const s=await api('/api/health?dashboard=stats'),m=s.metrics;$('revenue').textContent=money(m.revenueMxn);$('sales').textContent=m.sales;$('founding').textContent=m.foundingAssigned+' / '+m.foundingCapacity;$('pending').textContent=m.pendingDelivery;$('leads').textContent=m.leads;$('community').textContent=m.communityWaitlist;$('offer').textContent='Founding 100 · '+s.offer.status;$('updated').textContent='Actualizado: '+new Date(s.asOf).toLocaleString('es-MX');renderRows('products',s.charts.products);renderRows('sources',s.charts.sources);const daily=s.charts.daily;if(daily.length){const max=Math.max(1,...daily.map(d=>d.revenue));$('daily').className='';$('daily').innerHTML='<div class="bars">'+daily.map(d=>'<div title="'+esc(d.date)+' '+esc(money(d.revenue))+'" style="height:'+Math.max(5,Math.round(d.revenue/max*155))+'px"></div>').join('')+'</div><div class="axis"><span>'+esc(daily[0].date)+'</span><span>'+esc(daily[daily.length-1].date)+'</span></div>'} $('transactions').innerHTML=s.recentSales.length?s.recentSales.map(v=>'<tr><td>'+esc(v.at.slice(0,10))+'</td><td>'+esc(v.product)+'</td><td>'+esc(v.name||v.email||'—')+'</td><td>'+money(v.amountMxn)+'</td><td>'+esc(v.delivery||'Pendiente')+'</td><td>'+esc(v.source||'Directo')+'</td></tr>').join(''):'<tr><td colspan="6">Aún no hay compras confirmadas.</td></tr>'}catch(err){$('statsError').textContent='No se pudieron cargar las estadísticas: '+err.message+'. Pulsa Actualizar para reintentar.';$('statsError').classList.remove('hide');}}
+async function load(){$('statsError').classList.add('hide');try{const s=await api('/api/health?dashboard=stats'),m=s.metrics;$('revenue').textContent=money(m.revenueMxn);$('sales').textContent=m.sales;$('founding').textContent=m.foundingAssigned+' / '+m.foundingCapacity;$('pending').textContent=m.pendingDelivery;$('leads').textContent=m.leads;$('community').textContent=m.communityWaitlist;$('offer').textContent='Founding 100 · '+s.offer.status;$('updated').textContent='Actualizado: '+new Date(s.asOf).toLocaleString('es-MX');renderRows('products',s.charts.products);renderRows('sources',s.charts.sources);const daily=s.charts.daily;if(daily.length){const max=Math.max(1,...daily.map(d=>d.revenue));$('daily').className='';$('daily').innerHTML='<div class="bars">'+daily.map(d=>'<div title="'+esc(d.date)+' '+esc(money(d.revenue))+'" style="height:'+Math.max(5,Math.round(d.revenue/max*155))+'px"></div>').join('')+'</div><div class="axis"><span>'+esc(daily[0].date)+'</span><span>'+esc(daily[daily.length-1].date)+'</span></div>'} $('transactions').innerHTML=s.recentSales.length?s.recentSales.map(v=>'<tr><td>'+esc(v.at.slice(0,10))+'</td><td>'+esc(v.product)+'</td><td>'+esc(v.name||v.email||'—')+'</td><td>'+money(v.amountMxn)+'</td><td>'+esc(v.delivery||'Pendiente')+'</td><td>'+esc(v.source||'Directo')+'</td></tr>').join(''):'<tr><td colspan="6">Aún no hay compras confirmadas.</td></tr>'}catch(err){$('statsError').textContent='No se pudieron cargar las estadísticas: '+err.message+'. Pulsa Actualizar para reintentar.';$('statsError').classList.remove('hide');}finally{await loadTraffic();}}
+
+async function loadTraffic(){
+  const status=$('trafficStatus');
+  try{
+    const data=await api('/api/health?dashboard=traffic');
+    if(!data.available){
+      status.textContent=data.message||'La medición de tráfico aún no está disponible.';
+      status.classList.remove('hide');
+      return;
+    }
+    status.classList.add('hide');
+    if(data.totals){
+      $('visitors').textContent=new Intl.NumberFormat('es-MX').format(data.totals.visitors);
+      $('pageviews').textContent=new Intl.NumberFormat('es-MX').format(data.totals.pageviews);
+    }
+    $('visitsHint').textContent='Visitantes medidos desde la activación';
+    const showTraffic=(id,items,label)=>{$(id).innerHTML=items?.length?items.map(v=>'<div><span>'+esc(label(v.name))+'</span><b>'+new Intl.NumberFormat('es-MX').format(v.visitors||v.pageviews||0)+'</b></div>').join(''):'<div class="empty">Aún no hay datos registrados.</div>';};
+    const countries=new Intl.DisplayNames(['es-MX'],{type:'region'});
+    showTraffic('trafficCountries',data.countries||[],key=>{try{return countries.of(key)||key}catch{return key}});
+    showTraffic('trafficReferrers',data.referrers||[],key=>key||'Directo / sin referente');
+    showTraffic('trafficPages',data.pages||[],key=>key);
+    const daily=data.days||[];
+    if(daily.length){
+      const max=Math.max(1,...daily.map(row=>row.pageviews));
+      $('trafficDaily').className='';
+      $('trafficDaily').innerHTML='<div class="bars">'+daily.map(row=>'<div title="'+esc(row.date)+' · '+Number(row.pageviews)+' vistas" style="height:'+Math.max(5,Math.round(row.pageviews/max*155))+'px"></div>').join('')+'</div><div class="axis"><span>'+esc(daily[0].date)+'</span><span>'+esc(daily[daily.length-1].date)+'</span></div>';
+    }else $('trafficDaily').textContent='Todavía no hay visitas en el periodo.';
+  }catch(e){
+    status.textContent='La analítica no se pudo consultar ahora. '+e.message;
+    status.classList.remove('hide');
+  }
+}
+
 $('loginForm').addEventListener('submit',async e=>{e.preventDefault();$('error').textContent='';$('loginBtn').disabled=true;try{await api('/api/health?dashboard=auth',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'login',username:$('username').value,password:$('password').value})});$('password').value='';show(true);await load()}catch(err){$('error').textContent=err.message}finally{$('loginBtn').disabled=false}});
 $('logout').addEventListener('click',async()=>{try{await api('/api/health?dashboard=auth',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'logout'})})}catch{}show(false)});
 $('reload').addEventListener('click',async()=>{try{await load()}catch(err){alert(err.message)}});
