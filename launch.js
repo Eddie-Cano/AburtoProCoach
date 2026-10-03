@@ -19,13 +19,12 @@
     text('[data-offer-status]', status);
     text('[data-confirmed-members]', '100');
     text('[data-members-label]', 'plazas máximas · control manual');
-    const button = form?.querySelector('button[type="submit"]');
-    if (button) {
+    form?.querySelectorAll('button[type="submit"]').forEach(button => {
       button.disabled = !data.checkoutReady;
-      button.textContent = !data.configured || data.stage === 'scheduled' ? 'Apertura próximamente'
-        : data.stage === 'reserved' ? 'Pagos en proceso' : data.stage === 'regular' ? 'Comprar Starter Pack' : 'Ser Founding Member';
-    }
-    if (button && data.checkoutReady && window.AbProProductLanguage?.() === 'en') button.textContent = data.stage === 'founding' ? 'Buy English Pack · Founding 100' : 'Buy English Starter Pack';
+      const english = button.dataset.purchaseLanguage === 'en';
+      button.textContent = data.checkoutReady ? (english ? 'Buy in English ↗' : 'Comprar en español ↗')
+        : (english ? 'Currently unavailable' : 'Compra no disponible');
+    });
     if (data.stage === 'regular') {
       document.querySelectorAll('[data-founding-benefit]').forEach(node => { node.hidden = true; });
       text('[data-purchase-description]', 'Los tres libros digitales en una compra. Acceso personal por correo.');
@@ -44,13 +43,14 @@
     } catch {
       offer = null;
       text('[data-offer-status]', 'Estamos preparando la apertura. Consulta de nuevo en unos minutos.');
-      const button = form?.querySelector('button[type="submit"]');
-      if (button) { button.disabled = true; button.textContent = 'Apertura próximamente'; }
+      form?.querySelectorAll('button[type="submit"]').forEach(button => { button.disabled = true; });
     }
   }
   form?.addEventListener('submit', async event => {
     event.preventDefault();
-    const button = form.querySelector('button[type="submit"]');
+    const language = event.submitter?.dataset.purchaseLanguage || window.AbProProductLanguage?.() || 'es';
+    window.AbProSetProductLanguage?.(language);
+    const buttons = form.querySelectorAll('button[type="submit"]');
     const consent = form.querySelector('[data-legal-consent]');
     if (!consent?.checked) {
       consent?.setCustomValidity('Debes aceptar el Aviso de Privacidad y el Acuerdo de Confidencialidad para continuar.');
@@ -58,13 +58,13 @@
       return;
     }
     consent.setCustomValidity('');
-    button.disabled = true;
+    buttons.forEach(button => { button.disabled = true; });
     message('Comprobando el precio y la disponibilidad…');
     try {
       const response = await fetch('/api/commerce', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ product: 'starter-pack', email: form.elements.email.value.trim(), expectedPrice: offer?.price,
-          acceptedConfidentiality: true, language: window.AbProProductLanguage?.() || 'es',
+          acceptedConfidentiality: true, language,
           utmSource: window.AbProAnalytics?.getCampaign().source || new URLSearchParams(location.search).get('utm_source') || '',
           utmCampaign: window.AbProAnalytics?.getCampaign().campaign || new URLSearchParams(location.search).get('utm_campaign') || '' }),
       });
@@ -75,7 +75,7 @@
       if (url.protocol !== 'https:' || url.hostname !== 'checkout.stripe.com') throw new Error('invalid checkout');
       location.assign(url.href);
     } catch { message('No pudimos abrir el pago. Intenta nuevamente.', true); }
-    finally { if (offer) button.disabled = !offer.checkoutReady; }
+    finally { if (offer) buttons.forEach(button => { button.disabled = !offer.checkoutReady; }); }
   });
   window.addEventListener('productlanguagechange', () => { if (offer) render(offer); });
   refresh();

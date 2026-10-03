@@ -4,6 +4,7 @@
 
   async function openCheckout(button) {
     if (button.dataset.loading === 'true') return;
+    const language = button.dataset.purchaseLanguage || window.AbProProductLanguage?.() || 'es';
     const consent = document.querySelector('[data-legal-consent]');
     if (!consent?.checked) {
       consent?.setCustomValidity('Debes aceptar el Aviso de Privacidad y el Acuerdo de Confidencialidad para continuar.');
@@ -15,14 +16,14 @@
     const original = button.textContent;
     button.dataset.loading = 'true';
     button.setAttribute('aria-disabled', 'true');
-    button.textContent = window.AbProProductLanguage?.() === 'en' ? 'Opening checkout…' : 'Abriendo checkout…';
+    button.textContent = language === 'en' ? 'Opening checkout…' : 'Abriendo checkout…';
     try {
       const response = await fetch('/api/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           product: button.dataset.digitalCheckout,
-          language: window.AbProProductLanguage?.() || 'es',
+          language,
           acceptedConfidentiality: true,
           utmSource: window.AbProAnalytics?.getCampaign().source || new URLSearchParams(location.search).get('utm_source') || '',
           utmCampaign: window.AbProAnalytics?.getCampaign().campaign || new URLSearchParams(location.search).get('utm_campaign') || '',
