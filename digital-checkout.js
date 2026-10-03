@@ -15,13 +15,14 @@
     const original = button.textContent;
     button.dataset.loading = 'true';
     button.setAttribute('aria-disabled', 'true');
-    button.textContent = 'Abriendo checkout…';
+    button.textContent = window.AbProProductLanguage?.() === 'en' ? 'Opening checkout…' : 'Abriendo checkout…';
     try {
       const response = await fetch('/api/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           product: button.dataset.digitalCheckout,
+          language: window.AbProProductLanguage?.() || 'es',
           acceptedConfidentiality: true,
           utmSource: window.AbProAnalytics?.getCampaign().source || new URLSearchParams(location.search).get('utm_source') || '',
           utmCampaign: window.AbProAnalytics?.getCampaign().campaign || new URLSearchParams(location.search).get('utm_campaign') || '',

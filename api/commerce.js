@@ -8,11 +8,11 @@ const validEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 async function createStripeSession(email, offer, body) {
   const idempotencyKey = createHash('sha256').update(
-    `${email}:${offer.stage}:${Math.floor(Date.now() / 60000)}`
+    `${email}:${body.language}:${offer.stage}:${Math.floor(Date.now() / 60000)}`
   ).digest('hex');
   const params = new URLSearchParams({
     mode: 'payment',
-    locale: 'es',
+    locale: body.language,
     integration_identifier: 'aburto_qmztvphk',
     customer_email: email,
     customer_creation: 'always',
@@ -21,6 +21,7 @@ async function createStripeSession(email, offer, body) {
     'metadata[project]': 'andres-aburto',
     'metadata[product_slug]': 'starter-pack',
     'metadata[kind]': 'digital',
+    'metadata[language]': body.language,
     'metadata[offer]': offer.stage === 'founding' ? 'founding' : 'regular',
     'metadata[founding_assignment]': 'manual_sheets',
     'metadata[legal_acceptance]': 'privacy_confidentiality_v1',
@@ -28,8 +29,8 @@ async function createStripeSession(email, offer, body) {
     'metadata[utm_source]': String(body.utmSource || '').slice(0,100),
     'metadata[utm_campaign]': String(body.utmCampaign || '').slice(0,100),
     'phone_number_collection[enabled]': 'true',
-    success_url: `${SITE}/compra-confirmada.html`,
-    cancel_url: `${SITE}/productos/starter-pack.html#comprar`,
+    success_url: `${SITE}/compra-confirmada.html?lang=${body.language}`,
+    cancel_url: `${SITE}/productos/starter-pack.html?lang=${body.language}#comprar`,
   });
   const response = await fetch('https://api.stripe.com/v1/checkout/sessions', {
     method: 'POST',
@@ -59,6 +60,8 @@ export default async function handler(req,res) {
       return res.status(403).json({error:'Origen no permitido.'});
     }
     const body = typeof req.body === 'string' ? JSON.parse(req.body) : (req.body || {});
+    body.language ??= 'es';
+    if (!['es', 'en'].includes(body.language)) return res.status(400).json({error:'Idioma no válido.'});
     const email = String(body.email || '').trim().toLowerCase();
     if (body.product !== 'starter-pack' || !validEmail.test(email) || email.length > 254) {
       return res.status(400).json({error:'Escribe un correo válido.'});

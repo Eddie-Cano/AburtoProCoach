@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { englishEdition } from '../lib/product-editions.js';
 
 const SITE = 'https://www.aburtoprocoach.com';
 
@@ -34,12 +35,12 @@ async function createStripeCheckout(product, slug, body, req) {
   const ip = String(req.headers['x-forwarded-for'] || 'unknown').split(',')[0].trim();
   const bucket = Math.floor(Date.now() / 60000);
   const idem = createHash('sha256')
-    .update(`${slug}:${ip}:${bucket}:${String(body.utmSource || '')}:${String(body.utmCampaign || '')}`)
+    .update(`${slug}:${body.language}:${ip}:${bucket}:${String(body.utmSource || '')}:${String(body.utmCampaign || '')}`)
     .digest('hex');
 
   const params = new URLSearchParams({
     mode: 'payment',
-    locale: 'es',
+    locale: body.language,
     customer_creation: 'always',
     'phone_number_collection[enabled]': 'true',
     'line_items[0][price_data][currency]': 'mxn',
@@ -51,13 +52,15 @@ async function createStripeCheckout(product, slug, body, req) {
     'metadata[project]': 'andres-aburto',
     'metadata[product_slug]': slug,
     'metadata[kind]': 'digital',
+    'metadata[language]': body.language,
+    'line_items[0][price_data][product_data][metadata][language]': body.language,
     'metadata[legal_acceptance]': 'privacy_confidentiality_v1',
     'metadata[legal_accepted_at]': new Date().toISOString(),
     'metadata[utm_source]': String(body.utmSource || '').slice(0, 100),
     'metadata[utm_campaign]': String(body.utmCampaign || '').slice(0, 100),
     integration_identifier: 'aburto_qmztvphk',
-    success_url: `${SITE}/compra-confirmada.html?producto=${encodeURIComponent(slug)}`,
-    cancel_url: `${SITE}${product.cancelPath}?pago=cancelado`,
+    success_url: `${SITE}/compra-confirmada.html?producto=${encodeURIComponent(slug)}&lang=${body.language}`,
+    cancel_url: `${SITE}${product.cancelPath}?pago=cancelado&lang=${body.language}`,
   });
 
   const response = await fetch('https://api.stripe.com/v1/checkout/sessions', {
@@ -83,7 +86,10 @@ export default async function handler(req, res) {
   try {
     const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body || {};
     const slug = String(body.product || '');
-    const product = PRODUCTS[slug];
+    body.language ??= 'es';
+    if (!['es', 'en'].includes(body.language)) return res.status(400).json({ error: 'Idioma no válido.' });
+    const base = PRODUCTS[slug];
+    const product = base && { ...base, ...(body.language === 'en' ? { name: `${englishEdition(slug).name} — English Edition` } : {}) };
     if (!product) return res.status(400).json({ error: 'Producto no válido.' });
     if (body.acceptedConfidentiality !== true) {
       return res.status(400).json({ error: 'Debes aceptar el Aviso de Privacidad y el Acuerdo de Confidencialidad.' });

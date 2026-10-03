@@ -7,14 +7,14 @@ import { saleValues, memberValues, syncSaleToSheet } from '../lib/crm.js';
 const startAt = '2026-10-01T12:00:00-06:00';
 const start = Date.parse(startAt);
 
-test('uses exact 30% pricing and closes at 100 members or precisely 72 hours', () => {
+test('uses exact 30% pricing and closes at 100 members or the configured duration', () => {
   assert.equal(LAUNCH.foundingPrice, LAUNCH.individualTotal * .7);
   assert.equal(offerState({ startAt, now: start - 1 }).stage, 'scheduled');
   assert.equal(offerState({ startAt, now: start, confirmed: 99 }).price, 96040);
   assert.equal(offerState({ startAt, now: start, confirmed: 100 }).price, 105000);
   assert.equal(offerState({ startAt, now: start, confirmed: 99, reserved: 1 }).stage, 'reserved');
-  assert.equal(offerState({ startAt, now: start + 72 * 3600000 - 1 }).stage, 'founding');
-  const closed = offerState({ startAt, now: start + 72 * 3600000 });
+  assert.equal(offerState({ startAt, now: start + LAUNCH.durationHours * 3600000 - 1 }).stage, 'founding');
+  const closed = offerState({ startAt, now: start + LAUNCH.durationHours * 3600000 });
   assert.equal(closed.stage, 'regular');
   assert.equal(closed.foundingAccess, false);
   assert.equal(offerState({ now: start }).checkoutReady, false);

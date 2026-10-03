@@ -25,6 +25,7 @@
       button.textContent = !data.configured || data.stage === 'scheduled' ? 'Apertura próximamente'
         : data.stage === 'reserved' ? 'Pagos en proceso' : data.stage === 'regular' ? 'Comprar Starter Pack' : 'Ser Founding Member';
     }
+    if (button && data.checkoutReady && window.AbProProductLanguage?.() === 'en') button.textContent = data.stage === 'founding' ? 'Buy English Pack · Founding 100' : 'Buy English Starter Pack';
     if (data.stage === 'regular') {
       document.querySelectorAll('[data-founding-benefit]').forEach(node => { node.hidden = true; });
       text('[data-purchase-description]', 'Los tres libros digitales en una compra. Acceso personal por correo.');
@@ -63,7 +64,7 @@
       const response = await fetch('/api/commerce', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ product: 'starter-pack', email: form.elements.email.value.trim(), expectedPrice: offer?.price,
-          acceptedConfidentiality: true,
+          acceptedConfidentiality: true, language: window.AbProProductLanguage?.() || 'es',
           utmSource: window.AbProAnalytics?.getCampaign().source || new URLSearchParams(location.search).get('utm_source') || '',
           utmCampaign: window.AbProAnalytics?.getCampaign().campaign || new URLSearchParams(location.search).get('utm_campaign') || '' }),
       });
@@ -76,6 +77,7 @@
     } catch { message('No pudimos abrir el pago. Intenta nuevamente.', true); }
     finally { if (offer) button.disabled = !offer.checkoutReady; }
   });
+  window.addEventListener('productlanguagechange', () => { if (offer) render(offer); });
   refresh();
   setInterval(refresh, 30000);
 })();

@@ -46,7 +46,27 @@ export function emailConfiguration() {
   };
 }
 
+
+function buildEnglishDeliveryEmail({ name, productName, fileUrl, files, foundingMember, telegramWaitlistUrl }) {
+  const product = cleanText(productName, 160) || 'your digital product';
+  const entries = Array.isArray(files) && files.length ? files : [{ name: product, fileUrl }];
+  if (entries.length > 1 && entries.length !== 3) throw new Error('The pack requires three files');
+  const products = entries.map(file => ({ name: cleanText(file.name, 160), url: safeHttpsUrl(file.fileUrl || file.url) }));
+  if (products.some(file => !file.url)) throw new Error('A valid HTTPS delivery URL is required');
+  const greeting = cleanText(name, 100) ? `Hello, ${cleanText(name, 100)}.` : 'Hello.';
+  const number = Number(foundingMember?.number);
+  const founder = foundingMember?.active === true && Number.isInteger(number) && number >= 1 && number <= 100;
+  const waitlist = safeHttpsUrl(telegramWaitlistUrl);
+  const subject = `Your access to ${product} is ready${founder ? ` · Founding Member #${number}` : ''}`;
+  const bonus = founder ? `Founding Access confirmed · Member #${number}. You will receive a private announcement, early purchase access and an exclusive price for Posing Intensivo. The course is purchased separately when it launches; the member price will be announced before opening.` : '';
+  const text = [greeting, '', 'Thank you for your purchase!', `Your payment for ${product} has been confirmed. Your English edition is ready.`, '', ...products.map(file => `${file.name}: ${file.url}`), '', 'Access is linked to the email you used at checkout. Open the links with that Google account.', 'This material is for personal use. Do not share the links or access with others.', bonus, ...(waitlist ? ['', 'Want an invitation to the Telegram community?', `Join the waitlist: ${waitlist}`] : []), '', 'Thank you for trusting this process.', 'Andrés Aburto · Pro Coach'].filter(line => line !== undefined).join('\n');
+  const button = (url, label) => `<a href="${escapeHtml(url)}" style="display:inline-block;background:#df252d;color:#fff;padding:14px 22px;text-decoration:none;font-weight:bold;border-radius:4px">${escapeHtml(label)}</a>`;
+  const html = `<!doctype html><html lang="en"><body style="margin:0;background:#111;color:#eee;font-family:Arial,sans-serif"><table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:30px 16px"><table role="presentation" width="600" style="max-width:600px;width:100%;background:#1b1b1b" cellpadding="28"><tr><td style="border-top:4px solid #df252d"><p style="color:#df252d;font-weight:bold;letter-spacing:2px">ABURTO PRO COACH</p><h1>Your access is ready.</h1><p>${escapeHtml(greeting)}</p><p>Thank you for your purchase! Your payment for <strong>${escapeHtml(product)}</strong> has been confirmed.</p><p>Your complete English edition is ready:</p>${products.map(file => `<div style="margin:24px 0"><h2 style="font-size:20px">${escapeHtml(file.name)}</h2>${button(file.url, 'Open my product')}</div>`).join('')}<p>Access is linked to the email you used at checkout. Open the links with that Google account.</p><p style="color:#bbb">This material is for personal use. Do not share the links or access with others.</p>${bonus ? `<h2>Founding Access confirmed</h2><p>${escapeHtml(bonus)}</p>` : ''}${waitlist ? `<h2>The next chapter.</h2><p>Want an invitation to the Telegram community?</p>${button(waitlist, 'Join the waitlist')}` : ''}<p style="margin-top:32px">Thank you for trusting this process.<br><strong>Andrés Aburto · Pro Coach</strong></p></td></tr></table></td></tr></table></body></html>`;
+  return { subject, text, html };
+}
+
 export function buildPurchaseDeliveryEmail({
+  language = 'es',
   name,
   productName,
   fileUrl,
@@ -54,6 +74,7 @@ export function buildPurchaseDeliveryEmail({
   foundingMember,
   telegramWaitlistUrl = process.env.TELEGRAM_WAITLIST_URL || 'https://www.aburtoprocoach.com/comunidad-espera.html',
 }) {
+  if (language === 'en') return buildEnglishDeliveryEmail({ name, productName, fileUrl, files, foundingMember, telegramWaitlistUrl });
   if (Array.isArray(files) && files.length > 1) return buildPackDeliveryEmail({ name, productName, files, foundingMember, telegramWaitlistUrl });
   const customerName = cleanText(name, 100);
   const product = cleanText(productName, 160) || 'tu producto digital';
@@ -247,6 +268,7 @@ export async function sendPurchaseDeliveryEmail({ sale, delivery, eventId }) {
     return { sent: false, reason: delivery?.reason || 'delivery_not_granted' };
   }
   const content = buildPurchaseDeliveryEmail({
+    language: sale.language,
     name: sale.name,
     productName: sale.productName,
     fileUrl: delivery.fileUrl,

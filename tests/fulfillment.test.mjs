@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createHmac } from 'node:crypto';
 import { Readable } from 'node:stream';
 import { ExternalAccountClient } from 'google-auth-library';
-import handler from '../api/stripe-webhook.js';
+import handler, { deliveryProducts } from '../api/stripe-webhook.js';
 
 test('a paid bundle grants three files, survives email failure, and deduplicates different Stripe events for one checkout', async t => {
   const vars = {
@@ -18,7 +18,7 @@ test('a paid bundle grants three files, survives email failure, and deduplicates
   Object.assign(process.env, vars);
   t.after(() => { for (const [key, value] of Object.entries(previous)) if (value === undefined) delete process.env[key]; else process.env[key] = value; });
   t.mock.method(ExternalAccountClient, 'fromJSON', () => ({ getRequestHeaders: async () => new Headers({ authorization: 'Bearer fixture' }) }));
-  const kv = new Map(), sets = new Map(), sheet = new Map();
+  const kv = new Map(), sets = new Map(), sheet = new Map(), permissions = new Map();
   let driveGrants = 0, buyerEmails = 0, ownerEmails = 0, whatsapp = 0, failOwner = true;
   t.mock.method(globalThis, 'fetch', async (url, options = {}) => {
     if (url === vars.UPSTASH_REDIS_REST_URL) {
@@ -35,21 +35,30 @@ test('a paid bundle grants three files, survives email failure, and deduplicates
     }
     if (url.startsWith('https://sheets.googleapis.com/')) {
       const decoded = decodeURIComponent(url), tab = decoded.includes('Founding Members') ? 'members' : 'sales';
-      if (options.method === 'GET') return Response.json({ values: (sheet.get(tab) || []).map(row => [row[tab === 'sales' ? 3 : 2]]) });
+      if (!options.method || options.method === 'GET') {
+        const rows = sheet.get(tab) || [];
+        return Response.json({ values: decoded.includes('!A2:AH10000') ? rows : rows.map(row => [row[tab === 'sales' ? 3 : 2]]) });
+      }
       const values = JSON.parse(options.body).values[0];
       if (options.method === 'POST') { if (!sheet.has(tab)) sheet.set(tab, []); sheet.get(tab).push(values); }
       else sheet.get(tab)[Number(decoded.match(/!A(\d+):/)[1]) - 2] = values;
       return Response.json({ updatedRows: 1 });
     }
     if (url.startsWith('https://www.googleapis.com/drive/')) {
-      if (options.method === 'POST') { driveGrants++; return Response.json({ id: `permission-${driveGrants}` }); }
-      return Response.json(url.includes('/permissions?') ? { permissions: [] } : { id: 'file' });
+      const file = url.match(/files\/([^/]+)/)?.[1];
+      if (options.method === 'POST') { driveGrants++; const permission = { id: `permission-${driveGrants}`, emailAddress: JSON.parse(options.body).emailAddress }; permissions.set(file, permission); return Response.json(permission); }
+      return Response.json(url.includes('/permissions?') ? { permissions: permissions.has(file) ? [permissions.get(file)] : [] } : { id: 'file' });
     }
     if (url === 'https://api.resend.com/emails') {
       const body = JSON.parse(options.body);
       if (body.tags[0].value === 'digital_delivery') {
         buyerEmails++;
         assert.equal(body.to[0], 'fixture@example.com');
+        if (session.metadata.language === 'en') {
+          for (const file of deliveryProducts('starter-pack', 'en')) assert.ok(body.text.includes(file.url));
+          for (const file of deliveryProducts('starter-pack')) assert.ok(!body.text.includes(file.url));
+          assert.match(body.subject, /English Edition/);
+        }
         assert.equal((body.text.match(/https:\/\/drive.google.com\/file\/d\//g) || []).length, 3);
       } else {
         if (failOwner) { failOwner = false; return Response.json({ error: 'quota fixture' }, { status: 429 }); }
@@ -77,7 +86,7 @@ test('a paid bundle grants three files, survives email failure, and deduplicates
   assert.equal(driveGrants, 3);
   assert.equal(buyerEmails, 1);
   assert.equal(ownerEmails, 1);
-  assert.equal(whatsapp, 1);
+  assert.equal(whatsapp, 0);
   assert.equal(sheet.get('sales').length, 1);
   assert.equal(sheet.get('sales')[0].length, 34);
   assert.equal(sheet.get('sales')[0][26], 'Enviado');
@@ -86,11 +95,12 @@ test('a paid bundle grants three files, survives email failure, and deduplicates
   // With the default pack settings, one buyer email delivers all three books;
   // the internal owner copy does not consume a second daily email.
   process.env.SEND_PACK_SALES_EMAIL = 'false';
+  session.metadata.language = 'en';
   session.id = 'cs_fixture_bundle_default';
   session.payment_intent = 'pi_fixture_bundle_default';
   assert.equal((await run('evt_fixture_default')).code, 200);
   assert.equal(buyerEmails, 2);
   assert.equal(ownerEmails, 1);
   assert.equal(sheet.get('sales').length, 2);
-  assert.equal(sheet.get('sales')[1][16], 'Aviso en Sheets y WhatsApp');
+  assert.equal(sheet.get('sales')[1][16], 'Registrado en Sheets');
 });

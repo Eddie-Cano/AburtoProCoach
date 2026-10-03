@@ -3,6 +3,7 @@ import { getVercelOidcToken } from '@vercel/oidc';
 import { ExternalAccountClient } from 'google-auth-library';
 import { queueAndSendWhatsApp } from './_leadcore.js';
 import { sendPurchaseDeliveryEmail, sendTransactionalEmail } from './_email.js';
+import { englishEdition, productLanguage } from '../lib/product-editions.js';
 import { PACK_PRODUCTS, LAUNCH } from '../lib/launch-config.js';
 import { findSaleBySession, findSaleByPaymentIntent, fullyDelivered } from '../lib/purchase-ledger.js';
 import { syncSaleToSheet, saleValues } from '../lib/crm.js';
@@ -131,13 +132,19 @@ async function driveApi(path, { method = 'GET', body } = {}) {
   return { configured: true, data };
 }
 
-export function deliveryProducts(slug) {
+export function deliveryProducts(slug, language = 'es') {
+  productLanguage(language);
+  if (language === 'en') {
+    if (slug === 'starter-pack') return PACK_PRODUCTS.map(product => englishEdition(product.slug));
+    const edition = englishEdition(slug);
+    return edition ? [edition] : [];
+  }
   return slug === 'starter-pack' ? PACK_PRODUCTS : DIGITAL_DELIVERY[slug] ? [{ ...DIGITAL_DELIVERY[slug], slug, name: PRODUCT_NAMES[slug] }] : [];
 }
 
 // Permissions are checked before being granted; repeated Stripe events reuse the existing permission.
-export async function grantDigitalAccess({ slug, email, paymentIntentId }) {
-  const products = deliveryProducts(slug);
+export async function grantDigitalAccess({ slug, email, paymentIntentId, language = 'es' }) {
+  const products = deliveryProducts(slug, language);
   if (!products.length) return { applicable: false, granted: false };
   if (!email || !paymentIntentId) return { applicable: true, granted: false, reason: 'missing_customer_or_payment' };
   const grantedFiles = [];
@@ -290,7 +297,9 @@ export default async function handler(req, res) {
   }
 
   const slug = String(session.metadata?.product_slug || 'venta');
-  const digital = deliveryProducts(slug).length > 0;
+  const language = session.metadata?.language ?? 'es';
+  if (!['es', 'en'].includes(language)) return res.status(400).json({ error: 'Idioma no válido.' });
+  const digital = deliveryProducts(slug, language).length > 0;
   if (!sandbox && slug === 'starter-pack' && (session.currency !== 'mxn' || Number(session.amount_total) !== (session.metadata.offer === 'founding' ? LAUNCH.foundingPrice : LAUNCH.regularPrice))) return res.status(400).json({ error: 'El importe no corresponde a la oferta.' });
 
   const ownerEmailRequired = slug !== 'starter-pack' || process.env.SEND_PACK_SALES_EMAIL === 'true';
@@ -317,7 +326,8 @@ export default async function handler(req, res) {
     paymentLinkId: String(session.payment_link || ''),
     paymentIntentId: String(session.payment_intent || ''),
     productSlug: slug,
-    productName: `${sandbox ? '[SANDBOX] ' : ''}${PRODUCT_NAMES[slug] || slug}`,
+    language,
+    productName: `${sandbox ? '[SANDBOX] ' : ''}${language === 'en' && digital ? `${slug === 'starter-pack' ? 'Starter Pack' : englishEdition(slug).name} — English Edition` : PRODUCT_NAMES[slug] || slug}`,
     kind: digital ? 'digital' : String(session.metadata?.kind || 'service'),
     name: String(session.customer_details?.name || session.customer_details?.individual_name || ''),
     email: String(session.customer_details?.email || session.customer_email || ''),
@@ -331,7 +341,7 @@ export default async function handler(req, res) {
     deliveryStatus: previous?.deliveryStatus || (digital ? 'Pendiente' : 'No aplica'),
     buyerEmailStatus: previous?.buyerEmailStatus || (digital ? 'Pendiente' : 'No aplica'),
     offer: sandbox ? 'sandbox' : String(session.metadata?.offer || ''),
-    products: deliveryProducts(slug).map(file => file.name),
+    products: deliveryProducts(slug, language).map(file => file.name),
     utmSource: String(session.metadata?.utm_source || ''),
     utmCampaign: String(session.metadata?.utm_campaign || ''),
     startsAt: '',
@@ -345,8 +355,8 @@ export default async function handler(req, res) {
     let delivery = { applicable: false, granted: false };
     let customerEmail = { sent: !digital || previous?.buyerEmailStatus === 'Enviado' };
     if (digital) {
-      delivery = await grantDigitalAccess({ slug, email: sale.email, paymentIntentId: sale.paymentIntentId });
-      sale.deliveries = deliveryProducts(slug).map(file => ({
+      delivery = await grantDigitalAccess({ slug, email: sale.email, paymentIntentId: sale.paymentIntentId, language });
+      sale.deliveries = deliveryProducts(slug, language).map(file => ({
         slug: file.slug,
         status: delivery.granted || delivery.files?.some(grant => grant.slug === file.slug && grant.permissionId)
           ? 'Drive concedido' : 'Pendiente',
