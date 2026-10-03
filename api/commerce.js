@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { ENGLISH_PRICES, ENGLISH_FOUNDING_PRICE } from '../lib/english-stripe-prices.js';
 import { LAUNCH } from '../lib/launch-config.js';
 import { getManualOffer } from '../lib/manual-offer.js';
 import { googleAccessToken } from './stripe-webhook.js';
@@ -16,7 +17,9 @@ async function createStripeSession(email, offer, body) {
     integration_identifier: 'aburto_qmztvphk',
     customer_email: email,
     customer_creation: 'always',
-    'line_items[0][price]': offer.stage === 'founding' ? LAUNCH.foundingStripePrice : LAUNCH.regularStripePrice,
+    'line_items[0][price]': body.language === 'en'
+      ? (offer.stage === 'founding' ? ENGLISH_FOUNDING_PRICE : ENGLISH_PRICES['starter-pack'])
+      : (offer.stage === 'founding' ? LAUNCH.foundingStripePrice : LAUNCH.regularStripePrice),
     'line_items[0][quantity]': '1',
     'metadata[project]': 'andres-aburto',
     'metadata[product_slug]': 'starter-pack',

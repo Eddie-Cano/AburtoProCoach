@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { ENGLISH_PRICES } from '../lib/english-stripe-prices.js';
 import { englishEdition } from '../lib/product-editions.js';
 
 const SITE = 'https://www.aburtoprocoach.com';
@@ -62,6 +63,11 @@ async function createStripeCheckout(product, slug, body, req) {
     success_url: `${SITE}/compra-confirmada.html?producto=${encodeURIComponent(slug)}&lang=${body.language}`,
     cancel_url: `${SITE}${product.cancelPath}?pago=cancelado&lang=${body.language}`,
   });
+
+  if (body.language === 'en') {
+    for (const key of [...params.keys()]) if (key.startsWith('line_items[0][price_data]')) params.delete(key);
+    params.set('line_items[0][price]', ENGLISH_PRICES[slug]);
+  }
 
   const response = await fetch('https://api.stripe.com/v1/checkout/sessions', {
     method: 'POST',

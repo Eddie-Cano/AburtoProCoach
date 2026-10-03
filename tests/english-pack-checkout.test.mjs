@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { ExternalAccountClient } from 'google-auth-library';
 import handler from '../api/commerce.js';
+import { ENGLISH_PRICES, ENGLISH_FOUNDING_PRICE } from '../lib/english-stripe-prices.js';
 import { LAUNCH } from '../lib/launch-config.js';
 
 test('English pack keeps manual Founding control, existing prices, consent and language metadata', async t => {
@@ -20,14 +21,14 @@ test('English pack keeps manual Founding control, existing prices, consent and l
     await handler({method:'POST',headers:{origin:'https://www.aburtoprocoach.com'},body:{product:'starter-pack',email:'fixture@example.com',language,expectedPrice:price,acceptedConfidentiality:accepted}},res);return res;
   };
   assert.equal((await invoke(LAUNCH.foundingPrice)).code,200);
-  assert.equal(calls[0].get('line_items[0][price]'),LAUNCH.foundingStripePrice);
+  assert.equal(calls[0].get('line_items[0][price]'),ENGLISH_FOUNDING_PRICE);
   assert.equal(calls[0].get('locale'),'en');assert.equal(calls[0].get('metadata[language]'),'en');
   assert.equal(calls[0].get('metadata[founding_assignment]'),'manual_sheets');
   assert.equal((await invoke(LAUNCH.foundingPrice,'en',false)).code,400);
   assert.equal((await invoke(LAUNCH.foundingPrice,'fr')).code,400);
   status='cerrado'; assert.equal((await invoke(LAUNCH.foundingPrice)).code,409);
   assert.equal((await invoke(LAUNCH.regularPrice)).code,200);
-  assert.equal(calls[1].get('line_items[0][price]'),LAUNCH.regularStripePrice);
+  assert.equal(calls[1].get('line_items[0][price]'),ENGLISH_PRICES['starter-pack']);
   assert.equal(calls[1].get('metadata[offer]'),'regular');
   status='preparando';assert.equal((await invoke(LAUNCH.foundingPrice)).code,409);
   assert.equal(calls.length,2);

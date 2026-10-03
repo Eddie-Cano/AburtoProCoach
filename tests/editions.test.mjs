@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { ENGLISH_PRICES } from '../lib/english-stripe-prices.js';
 import checkout from '../api/checkout.js';
 import { deliveryProducts } from '../api/stripe-webhook.js';
 import { buildPurchaseDeliveryEmail } from '../api/_email.js';
@@ -17,11 +18,16 @@ test('English and Spanish checkouts preserve prices and consent; language change
       const res = response(); await checkout(request(slug,language),res); assert.equal(res.code,200);
       const {params} = calls.at(-1);
       assert.equal(params.get('locale'),language); assert.equal(params.get('metadata[language]'),language);
-      assert.equal(params.get('line_items[0][price_data][unit_amount]'),String(amount));
-      assert.equal(params.get('line_items[0][price_data][currency]'),'mxn');
+      if (language === 'es') {
+        assert.equal(params.get('line_items[0][price_data][unit_amount]'),String(amount));
+        assert.equal(params.get('line_items[0][price_data][currency]'),'mxn');
+      } else {
+        assert.equal(params.get('line_items[0][price]'), ENGLISH_PRICES[slug]);
+        assert.equal(params.get('line_items[0][price_data][unit_amount]'), null);
+      }
       assert.match(params.get('success_url'),new RegExp(`lang=${language}`));
       assert.equal(params.get('metadata[legal_acceptance]'),'privacy_confidentiality_v1');
-      if (language === 'en') assert.match(params.get('line_items[0][price_data][product_data][name]'),/English Edition/);
+      if (language === 'en') assert.equal(params.get('line_items[0][price_data][product_data][name]'),null);
     }
     assert.notEqual(calls.at(-1).key,calls.at(-2).key);
   }
