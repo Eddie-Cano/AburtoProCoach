@@ -20,7 +20,9 @@ async function redis(...command) {
   return data.result;
 }
 
+export const config = {maxDuration:300};
 export default async function handler(req, res) {
+  if(req.query?.library==='1')return (await import('../lib/library-handler.js')).default(req,res);
   res.setHeader('Cache-Control', 'no-store');
   const redisReady = Boolean(process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN);
   const sheetReady = Boolean(process.env.GOOGLE_SHEETS_WEBHOOK_URL);

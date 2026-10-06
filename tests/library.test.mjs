@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {randomBytes} from 'node:crypto';
 import {Writable} from 'node:stream';
 import {ExternalAccountClient} from 'google-auth-library';
-import handler from '../api/library.js';
+import handler from '../lib/library-handler.js';
 import {accessHash,libraryCookie,cookieAccessId,PRIVACY_VERSION,AGREEMENT_VERSION} from '../lib/library.js';
 
 test('private library enforces personal access, consent, entitlement, revocation and streams large PDFs',async t=>{

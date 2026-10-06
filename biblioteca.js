@@ -1,7 +1,7 @@
 (()=>{'use strict';const $=id=>document.getElementById(id),params=new URLSearchParams(location.hash.slice(1));
 let token=params.get('acceso')||sessionStorage.getItem('aburto-library-token')||'',data;
 if(params.get('acceso')){sessionStorage.setItem('aburto-library-token',token);history.replaceState(null,'',location.pathname);}
-async function api(options={}){const response=await fetch('/api/library',{cache:'no-store',credentials:'same-origin',...options,headers:{...(token?{Authorization:'Bearer '+token}:{}),...options.headers}});const body=await response.json();if(!response.ok)throw Error(body.error||'No pudimos conectar con tu biblioteca.');return body;}
+async function api(options={}){const response=await fetch('/api/access?library=1',{cache:'no-store',credentials:'same-origin',...options,headers:{...(token?{Authorization:'Bearer '+token}:{}),...options.headers}});const body=await response.json();if(!response.ok)throw Error(body.error||'No pudimos conectar con tu biblioteca.');return body;}
 function render(){
  $('library').hidden=false;$('recipient').textContent=data.name?data.name+' · '+data.email:data.email;
  $('expires').textContent='Acceso vigente hasta '+new Date(data.expiresAt).toLocaleDateString('es-MX');
