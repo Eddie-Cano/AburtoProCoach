@@ -1,3 +1,4 @@
+import {issueAccess,purchaseAccessId,libraryUrl,updateAccess,readAccesses} from '../lib/library.js';
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { getVercelOidcToken } from '@vercel/oidc';
 import { ExternalAccountClient } from 'google-auth-library';
@@ -251,10 +252,12 @@ export default async function handler(req, res) {
       const token = await googleAccessToken();
       const row = await findSaleByPaymentIntent(paymentIntentId, token);
       if (!row) return res.status(503).json({ error: 'Venta pendiente de conciliación antes de registrar el reembolso.' });
+      const libraryRecord = (await readAccesses(token)).find(record=>record.id===purchaseAccessId(row.checkoutSessionId));
+      if(libraryRecord) await updateAccess(token,libraryRecord,{state:'Revocado'});
       const kind = event.type === 'charge.refunded' ? 'Reembolsado' : 'En disputa';
       const updates = [
         { range: `'Ventas'!N${row.rowNumber}`, values: [[kind]] },
-        { range: `'Ventas'!AB${row.rowNumber}`, values: [['Revisión manual de acceso a Drive']] },
+        { range: `'Ventas'!AB${row.rowNumber}`, values: [[libraryRecord?'Biblioteca revocada':'Revisión manual de acceso a Drive']] },
         { range: `'Ventas'!AH${row.rowNumber}`, values: [[`${kind} — verificar permisos de otros pagos antes de revocar`]] },
       ];
       const response = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${CRM_SHEET_ID}/values:batchUpdate`, {
@@ -355,17 +358,20 @@ export default async function handler(req, res) {
     let delivery = { applicable: false, granted: false };
     let customerEmail = { sent: !digital || previous?.buyerEmailStatus === 'Enviado' };
     if (digital) {
-      delivery = await grantDigitalAccess({ slug, email: sale.email, paymentIntentId: sale.paymentIntentId, language });
+      const googleToken = await googleAccessToken();
+      const access = await issueAccess({id:purchaseAccessId(sale.checkoutSessionId),name:sale.name,email:sale.email,product:slug,language,kind:'Compra',googleToken});
+      delivery = {applicable:true,granted:true,library:true,fileUrl:libraryUrl(access.token),files:deliveryProducts(slug,language).map(file=>({...file,fileUrl:libraryUrl(access.token,file.slug)}))};
       sale.deliveries = deliveryProducts(slug, language).map(file => ({
         slug: file.slug,
         status: delivery.granted || delivery.files?.some(grant => grant.slug === file.slug && grant.permissionId)
-          ? 'Drive concedido' : 'Pendiente',
+          ? 'Biblioteca habilitada' : 'Pendiente',
       }));
-      sale.deliveryStatus = delivery.granted ? 'Drive concedido' : `Pendiente: ${delivery.reason || 'no concedido'}`;
-      if (!delivery.granted) throw new Error('Drive permission pending');
+      sale.deliveryStatus = delivery.granted ? 'Biblioteca habilitada' : `Pendiente: ${delivery.reason || 'no concedido'}`;
+      if (!delivery.granted) throw new Error('Library access pending');
       if (!customerEmail.sent) customerEmail = await sendPurchaseDeliveryEmail({ sale, delivery, eventId: event.id });
       sale.buyerEmailStatus = customerEmail.sent ? 'Enviado' : 'Pendiente';
-      sale.deliveryStatus = customerEmail.sent ? 'Drive + correo enviados' : 'Drive concedido; correo pendiente';
+      sale.deliveryStatus = customerEmail.sent ? 'Biblioteca + correo enviados' : 'Biblioteca habilitada; correo pendiente';
+      await updateAccess(googleToken,access.record,{mailState:customerEmail.sent?'Enviado':'Pendiente',...(customerEmail.id?{mailId:customerEmail.id}:{})});
       const updated = await syncSaleToCrm(sale);
       if (!updated.synced) throw new Error('Delivery result not saved in Sheets');
       if (!customerEmail.sent) throw new Error('Buyer delivery email pending');

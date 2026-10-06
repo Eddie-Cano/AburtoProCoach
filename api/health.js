@@ -131,7 +131,7 @@ async function handleDashboardStats(req,res){
     const members=allFounders.slice(1).filter(r=>cell(r,2).startsWith('cs_'));
     const foundingPaid=paid.filter(r=>cell(r,18).toLowerCase()==='founding');
     const assigned=members.filter(r=>/^\d+$/.test(cell(r,0))&&cell(r,7).toLowerCase()==='activo');
-    const pendingDelivery=paid.filter(r=>!['Drive + correo enviados','Entregado','Completado'].includes(cell(r,27)) && cell(r,5)==='digital');
+    const pendingDelivery=paid.filter(r=>!['Drive + correo enviados','Biblioteca + correo enviados','Entregado','Completado'].includes(cell(r,27)) && cell(r,5)==='digital');
     const byDay=new Map();
     for(const r of paid){const key=isoDate(cell(r,1));if(!key)continue;const v=byDay.get(key)||{date:key,sales:0,revenue:0};v.sales++;v.revenue+=Number(cell(r,11))||0;byDay.set(key,v);}
     const settings=new Map(allSettings.slice(1).map(r=>[cell(r,0).toLowerCase(),cell(r,1)]));

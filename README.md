@@ -96,3 +96,12 @@ La compra permanece cerrada si faltan conexiones; `/api/commerce` devuelve confi
 El plan gratuito de Resend tiene 100 correos/día. El Starter Pack consume un único correo por comprador, con los tres accesos; el aviso interno queda en Sheets y WhatsApp. La copia interna por email es opcional mediante `SEND_PACK_SALES_EMAIL=true` y consumiría un segundo correo por compra. Los demás envíos del sitio también consumen cuota. El progreso guardado evita repetir correos durante los reintentos del webhook. Supervisar los pendientes de entrega en Sheets si se agota la cuota; no presentar un email enviado hasta que el proveedor lo confirme.
 
 Stripe verificado el 30 de septiembre de 2026: catálogo y precios del pack ($960.40/$1,050) y de los dos libros de $526 creados en la cuenta Raíz Noble. Los secretos de API y firma están guardados únicamente en Vercel Production. El endpoint de Stripe está desactivado mientras se verifica Redis y Google; activarlo antes de abrir la campaña. Los identificadores públicos están en `stripe-catalog.json`.
+
+
+## Biblioteca privada y envíos manuales
+
+En `/dashboard/`, iniciar sesión y usar **Biblioteca privada · Enviar productos**: nombre, correo, producto, idioma y tipo (Prueba o Cortesía). Registrar y enviar crea un acceso personal válido 90 días, con copia a Raíz Noble. Las pruebas no ocupan las diez copias en la pestaña de testimonios. Reenviar permite recuperar el acceso; Revocar impide abrirlo y descargar. Las compras verificadas por Stripe usan la misma biblioteca, con vigencia de diez años y deduplicación por Checkout Session.
+
+La pestaña `Biblioteca privada` registra emisión, destinatario, producto, tipo, vigencia, correo, aceptación/versiones y última descarga iniciada. Guarda únicamente el hash del enlace. Los originales permanecen privados en Drive: no subir PDFs a GitHub ni compartirlos públicamente. Requiere las credenciales Google de workload identity ya configuradas, `DASHBOARD_SESSION_SECRET` y Resend con remitente verificado.
+
+`biblioteca.html` recibe el secreto en el fragmento del enlace, lo retira de la barra, no usa Analytics y envía el secreto en Authorization. Antes de descargar se requieren ambas casillas explícitas; el servidor verifica producto, vigencia, revocación y cookie segura de consentimiento. La función sirve PDFs por streaming para soportar archivos mayores de 4.5 MB. El registro de descarga indica inicio, no lectura completa. Enviado significa aceptación del proveedor; la bandeja de entrada se confirma con el destinatario.

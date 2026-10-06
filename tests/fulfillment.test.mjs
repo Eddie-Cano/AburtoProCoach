@@ -7,7 +7,7 @@ import handler, { deliveryProducts } from '../api/stripe-webhook.js';
 
 test('a paid bundle grants three files, survives email failure, and deduplicates different Stripe events for one checkout', async t => {
   const vars = {
-    STRIPE_WEBHOOK_SECRET: 'test-signature-only', UPSTASH_REDIS_REST_URL: 'https://redis.fixture.invalid',
+    STRIPE_WEBHOOK_SECRET: 'test-signature-only', DASHBOARD_SESSION_SECRET:'fixture-library-secret', UPSTASH_REDIS_REST_URL: 'https://redis.fixture.invalid',
     UPSTASH_REDIS_REST_TOKEN: 'fixture', GCP_PROJECT_NUMBER: '123', GCP_WORKLOAD_IDENTITY_POOL_ID: 'fixture',
     GCP_WORKLOAD_IDENTITY_POOL_PROVIDER_ID: 'fixture', GCP_SERVICE_ACCOUNT_EMAIL: 'fixture@project.iam.gserviceaccount.com',
     RESEND_API_KEY: 'fixture', META_WHATSAPP_TOKEN: 'fixture', META_PHONE_NUMBER_ID: 'fixture', WHATSAPP_PROVIDER: 'meta',
@@ -34,12 +34,14 @@ test('a paid bundle grants three files, survives email failure, and deduplicates
       return Response.json({ result });
     }
     if (url.startsWith('https://sheets.googleapis.com/')) {
-      const decoded = decodeURIComponent(url), tab = decoded.includes('Founding Members') ? 'members' : 'sales';
+      const decoded = decodeURIComponent(url), tab = decoded.includes('Biblioteca privada') ? 'library' : decoded.includes('Founding Members') ? 'members' : 'sales';
       if (!options.method || options.method === 'GET') {
         const rows = sheet.get(tab) || [];
-        return Response.json({ values: decoded.includes('!A2:AH10000') ? rows : rows.map(row => [row[tab === 'sales' ? 3 : 2]]) });
+        return Response.json({ values: (decoded.includes('!A2:AH10000') || tab==='library') ? rows : rows.map(row => [row[tab === 'sales' ? 3 : 2]]) });
       }
-      const values = JSON.parse(options.body).values[0];
+      const body = JSON.parse(options.body);
+      if (body.data) { for(const change of body.data){const match=change.range.match(/!([A-Z])(\d+)/);sheet.get('library')[Number(match[2])-2][match[1].charCodeAt(0)-65]=change.values[0][0];}return Response.json({}); }
+      const values = body.values[0];
       if (options.method === 'POST') { if (!sheet.has(tab)) sheet.set(tab, []); sheet.get(tab).push(values); }
       else sheet.get(tab)[Number(decoded.match(/!A(\d+):/)[1]) - 2] = values;
       return Response.json({ updatedRows: 1 });
@@ -55,11 +57,13 @@ test('a paid bundle grants three files, survives email failure, and deduplicates
         buyerEmails++;
         assert.equal(body.to[0], 'fixture@example.com');
         if (session.metadata.language === 'en') {
-          for (const file of deliveryProducts('starter-pack', 'en')) assert.ok(body.text.includes(file.url));
+          for (const file of deliveryProducts('starter-pack', 'en')) assert.ok(body.text.includes('producto='+file.slug));
           for (const file of deliveryProducts('starter-pack')) assert.ok(!body.text.includes(file.url));
           assert.match(body.subject, /English Edition/);
         }
-        assert.equal((body.text.match(/https:\/\/drive.google.com\/file\/d\//g) || []).length, 3);
+        assert.equal((body.text.match(/https:\/\/www.aburtoprocoach.com\/biblioteca.html#acceso=/g) || []).length, 3);
+        assert.ok(!body.text.includes('drive.google.com'));
+        assert.match(body.text,/No necesitas una cuenta de Google|No Google account is required/);
       } else {
         if (failOwner) { failOwner = false; return Response.json({ error: 'quota fixture' }, { status: 429 }); }
         ownerEmails++;
@@ -83,14 +87,15 @@ test('a paid bundle grants three files, survives email failure, and deduplicates
   assert.equal((await run('evt_fixture_first')).code, 503);
   assert.equal((await run('evt_fixture_retry')).code, 200);
   assert.equal((await run('evt_fixture_other', 'checkout.session.async_payment_succeeded')).data.duplicate, true);
-  assert.equal(driveGrants, 3);
+  assert.equal(driveGrants, 0);
+  assert.equal(sheet.get('library').length,1);
   assert.equal(buyerEmails, 1);
   assert.equal(ownerEmails, 1);
   assert.equal(whatsapp, 0);
   assert.equal(sheet.get('sales').length, 1);
   assert.equal(sheet.get('sales')[0].length, 34);
   assert.equal(sheet.get('sales')[0][26], 'Enviado');
-  assert.equal(sheet.get('sales')[0][27], 'Drive + correo enviados');
+  assert.equal(sheet.get('sales')[0][27], 'Biblioteca + correo enviados');
 
   // With the default pack settings, one buyer email delivers all three books;
   // the internal owner copy does not consume a second daily email.

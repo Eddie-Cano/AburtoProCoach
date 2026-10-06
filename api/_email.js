@@ -220,6 +220,7 @@ export function buildPackDeliveryEmail({ name, productName = 'Starter Pack', fil
 
 export async function sendTransactionalEmail({
   to,
+  cc,
   subject,
   text,
   html,
@@ -245,6 +246,7 @@ export async function sendTransactionalEmail({
     body: JSON.stringify({
       from: config.from,
       to: recipients,
+      ...(cc ? {cc: normalizeRecipients(cc)} : {}),
       subject: cleanText(subject, 200),
       text: String(text || ''),
       ...(html ? { html: String(html) } : {}),
@@ -267,7 +269,7 @@ export async function sendPurchaseDeliveryEmail({ sale, delivery, eventId }) {
   if (!delivery?.granted || !sale?.email) {
     return { sent: false, reason: delivery?.reason || 'delivery_not_granted' };
   }
-  const content = buildPurchaseDeliveryEmail({
+  let content = buildPurchaseDeliveryEmail({
     language: sale.language,
     name: sale.name,
     productName: sale.productName,
@@ -275,6 +277,9 @@ export async function sendPurchaseDeliveryEmail({ sale, delivery, eventId }) {
     files: delivery.files,
     foundingMember: sale.foundingMember,
   });
+  if (delivery.library) {
+    for (const key of ['text','html']) content[key] = content[key].replace(/Abre los archivos en Google Drive con el mismo correo que utilizaste al comprar\./g, 'Abre tu biblioteca personal y acepta ambos documentos. No necesitas una cuenta de Google.').replace(/Access is linked to the email you used at checkout\. Open the links with that Google account\./g, 'Open your personal library in any browser, then accept the privacy notice and confidentiality agreement. No Google account is required.').replace(/El acceso está vinculado al mismo correo que utilizaste durante la compra\. Abre el enlace con esa cuenta de Google\./g, 'Abre tu biblioteca personal y acepta el aviso de privacidad y el acuerdo de confidencialidad. No necesitas una cuenta de Google.').replace(/El acceso está vinculado al correo utilizado durante la compra\. Abre el enlace con esa misma cuenta de Google\./g, 'Abre tu biblioteca personal y acepta ambos documentos. No necesitas una cuenta de Google.').replace(/Abre cada archivo con la cuenta de Google asociada al correo de tu compra\./g, 'Abre tu biblioteca personal y acepta ambos documentos para descargar. No necesitas una cuenta de Google.');
+  }
   return sendTransactionalEmail({
     to: sale.email,
     ...content,
