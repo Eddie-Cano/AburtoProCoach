@@ -11,7 +11,7 @@ test('a paid bundle grants three files, survives email failure, and deduplicates
     UPSTASH_REDIS_REST_TOKEN: 'fixture', GCP_PROJECT_NUMBER: '123', GCP_WORKLOAD_IDENTITY_POOL_ID: 'fixture',
     GCP_WORKLOAD_IDENTITY_POOL_PROVIDER_ID: 'fixture', GCP_SERVICE_ACCOUNT_EMAIL: 'fixture@project.iam.gserviceaccount.com',
     RESEND_API_KEY: 'fixture', META_WHATSAPP_TOKEN: 'fixture', META_PHONE_NUMBER_ID: 'fixture', WHATSAPP_PROVIDER: 'meta',
-    PURCHASE_FROM_EMAIL: 'Fixture <fixture@example.com>',
+    PURCHASE_FROM_EMAIL: 'Fixture <compras@aburtoprocoach.com>',
     SEND_PACK_SALES_EMAIL: 'true',
   };
   const previous = Object.fromEntries(Object.keys(vars).map(key => [key, process.env[key]]));
@@ -56,6 +56,7 @@ test('a paid bundle grants three files, survives email failure, and deduplicates
       if (body.tags[0].value === 'digital_delivery') {
         buyerEmails++;
         assert.equal(body.to[0], 'fixture@example.com');
+        assert.equal(body.from,'Andrés Aburto <compras@aburtoprocoach.com>');
         if (session.metadata.language === 'en') {
           for (const file of deliveryProducts('starter-pack', 'en')) assert.ok(body.text.includes('producto='+file.slug));
           for (const file of deliveryProducts('starter-pack')) assert.ok(!body.text.includes(file.url));

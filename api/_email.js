@@ -1,4 +1,4 @@
-const DEFAULT_FROM = 'Aburto Pro Coach <onboarding@resend.dev>';
+const DEFAULT_FROM = 'Andrés Aburto <compras@aburtoprocoach.com>';
 const DEFAULT_SITE_URL = 'https://www.aburtoprocoach.com';
 
 function cleanText(value, maxLength = 500) {
@@ -35,12 +35,15 @@ function idempotencyKey(value) {
 }
 
 export function emailConfiguration() {
-  const from = cleanText(process.env.PURCHASE_FROM_EMAIL || process.env.LEAD_FROM_EMAIL || DEFAULT_FROM, 254);
+  const configured = cleanText(process.env.PURCHASE_FROM_EMAIL || process.env.LEAD_FROM_EMAIL || '', 254);
+  const address = (configured.match(/<([^<>]+)>$/)?.[1] || configured).toLowerCase();
+  const domainSender = /^[a-z0-9.!#$%&'*+/=?^_`{|}~-]+@aburtoprocoach\.com$/.test(address);
+  const from = domainSender ? `Andrés Aburto <${address}>` : DEFAULT_FROM;
   const replyTo = cleanText(process.env.PURCHASE_REPLY_TO_EMAIL || process.env.REPLY_TO_EMAIL || '', 254);
   return {
     provider: 'resend',
     apiConfigured: Boolean(process.env.RESEND_API_KEY),
-    verifiedSenderConfigured: Boolean(process.env.PURCHASE_FROM_EMAIL || process.env.LEAD_FROM_EMAIL),
+    verifiedSenderConfigured: domainSender,
     from,
     replyTo,
   };
@@ -229,6 +232,7 @@ export async function sendTransactionalEmail({
 }) {
   const config = emailConfiguration();
   if (!config.apiConfigured) return { sent: false, reason: 'resend_not_configured' };
+  if (!config.verifiedSenderConfigured) return {sent:false,reason:'domain_sender_not_configured'};
 
   const recipients = normalizeRecipients(to);
   if (recipients.length === 0) return { sent: false, reason: 'missing_recipient' };
