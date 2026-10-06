@@ -77,7 +77,7 @@ async function loadTraffic(){
 
 $('loginForm').addEventListener('submit',async e=>{e.preventDefault();$('error').textContent='';$('loginBtn').disabled=true;try{await api('/api/health?dashboard=auth',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'login',username:$('username').value,password:$('password').value})});$('password').value='';show(true);await load()}catch(err){$('error').textContent=err.message}finally{$('loginBtn').disabled=false}});
 $('logout').addEventListener('click',async()=>{try{await api('/api/health?dashboard=auth',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'logout'})})}catch{}show(false)});
-$('reloadReviews').addEventListener('click',loadReviews);
+$('reloadReviews').addEventListener('click',()=>loadReviews());
 $('reload').addEventListener('click',async()=>{try{await load()}catch(err){alert(err.message)}});
-(async()=>{try{const s=await api('/api/health?dashboard=auth');if(s.authenticated){show(true);await load()}else if(!s.configured)$('error').textContent='El acceso privado está pendiente de configurar sus credenciales en Vercel.'}catch{$('error').textContent='El inicio de sesión aún no está disponible.'}})();
+document.addEventListener('DOMContentLoaded',()=>{(async()=>{try{const s=await api('/api/health?dashboard=auth');if(s.authenticated){show(true);await load()}else if(!s.configured)$('error').textContent='El acceso privado está pendiente de configurar sus credenciales en Vercel.'}catch{$('error').textContent='El inicio de sesión aún no está disponible.'}})();});
 </script><script src="/dashboard/reviews-admin.js?v=20261005"></script><script src="/dashboard/library-admin.js?v=20261006"></script></body></html>
