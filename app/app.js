@@ -1,7 +1,7 @@
 (()=>{
 'use strict';
 const $=id=>document.getElementById(id);
-const S={user:null,channels:[],resources:[],merch:[],channel:'general',view:'chat',timer:null,loading:false,previous:''};
+const S={user:null,channels:[],resources:[],channel:'general',view:'chat',timer:null,usageTimer:null,loading:false,previous:''};
 const el=(tag,cls='',value)=>{const x=document.createElement(tag);x.className=cls;if(value!==undefined)x.textContent=String(value);return x};
 const notify=t=>{$('toast').textContent=t;$('toast').classList.add('visible');setTimeout(()=>$('toast').classList.remove('visible'),4200)};
 async function api(action,data,params={}){
@@ -14,7 +14,7 @@ function view(name){
  S.view=name;
  document.querySelectorAll('.view').forEach(x=>x.classList.toggle('active',x.id===name+'View'));
  document.querySelectorAll('[data-view]').forEach(x=>x.classList.toggle('active',x.dataset.view===name));
- const labels={resources:['▤','Biblioteca','Cursos y herramientas'],store:['▣','Tienda','Catálogo ABURTO TEAM'],profile:['♙','Mi perfil','Cuenta verificada'],admin:['⚙','Administración','Gestión privada']};
+ const labels={resources:['▤','Herramientas','Calculadoras deportivas'],store:['▣','Cursos','Formación y guías de Andrés'],profile:['♙','Mi perfil','Cuenta verificada'],admin:['⚙','Administración','Gestión privada']};
  if(name==='chat')channel(S.channel,false);else {const d=labels[name];$('viewSymbol').textContent=d[0];$('viewTitle').textContent=d[1];$('viewDescription').textContent=d[2];}
  $('channelPane').classList.remove('open');if(name==='admin')window.TeamAdmin?.load();
 }
@@ -70,10 +70,30 @@ function card(item,icon){
  x.append(f);return x;
 }
 function setupCatalog(){
- $('resourceCards').replaceChildren(...S.resources.filter(x=>x.type!=='digital').map(x=>card(x,'⚡')));
+ $('resourceCards').replaceChildren(...S.resources.filter(x=>x.type==='tool').map(x=>card(x,'⚡')));
+ $('courseCards').replaceChildren(...S.resources.filter(x=>x.type==='course').map(x=>card(x,'◈')));
  $('digitalCards').replaceChildren(...S.resources.filter(x=>x.type==='digital').map(x=>card(x,'▣')));
- $('merchCards').replaceChildren(...S.merch.map(x=>card(x,'◆')));
 }
+function installMode(){
+ try{if(window.matchMedia('(display-mode: standalone)').matches||navigator.standalone===true)return 'standalone';}catch{}
+ return 'browser';
+}
+function mobilePlatform(){
+ const ua=navigator.userAgent||'';
+ return /iphone|ipad|ipod/i.test(ua)?'ios':/android/i.test(ua)?'android':'other';
+}
+async function trackUsage(event,overrideMode){
+ if(!S.user)return;
+ try{await api('usage',{event,mode:overrideMode||installMode(),platform:mobilePlatform()})}
+ catch(error){if(error.status===401)clearInterval(S.usageTimer)}
+}
+window.addEventListener('appinstalled',()=>{
+ if(S.user)trackUsage('installed','appinstalled');
+ else try{sessionStorage.setItem('aburto-team-pending-install','1')}catch{}
+});
+document.addEventListener('visibilitychange',()=>{
+ if(!document.hidden&&S.user){trackUsage('active');if(S.view==='chat')loadMessages()}
+});
 function setupProfile(){
  const m=S.user;if(!m)return;
  $('headerProfile').textContent=m.name[0].toUpperCase();$('profileAvatar').textContent=m.name[0].toUpperCase();$('profileHandle').textContent=m.name;
@@ -81,10 +101,14 @@ function setupProfile(){
  $('adminTab').classList.toggle('hidden',!['admin','coach'].includes(m.role));
 }
 async function bootstrap(){
- const d=await api('bootstrap');S.user=d.user;S.channels=d.channels;S.resources=d.resources;S.merch=d.merch;
+ const d=await api('bootstrap');S.user=d.user;S.channels=d.channels;S.resources=d.resources;
  if(!S.channels.some(x=>x.slug===S.channel))S.channel=S.channels[0]?.slug||'general';
  renderChannels();setupCatalog();setupProfile();$('authOverlay').classList.add('hidden');view('chat');
  clearInterval(S.timer);S.timer=setInterval(()=>{if(!document.hidden)loadMessages()},6000);
+ clearInterval(S.usageTimer);
+ S.usageTimer=setInterval(()=>{if(!document.hidden&&S.user)trackUsage('active')},300000);
+ trackUsage('open');
+ try{if(sessionStorage.getItem('aburto-team-pending-install')==='1'){sessionStorage.removeItem('aburto-team-pending-install');trackUsage('installed','appinstalled')}}catch{}
 }
 window.Team={S,api,bootstrap,view,notify};
 document.querySelectorAll('[data-view]').forEach(x=>x.addEventListener('click',()=>view(x.dataset.view)));
@@ -96,6 +120,6 @@ $('changeEmail').onclick=()=>{$('emailForm').classList.remove('hidden');$('codeF
 $('messageForm').onsubmit=async e=>{e.preventDefault();const input=$('messageInput');if(!input.value.trim())return;$('sendButton').disabled=true;try{await api('message',{channel:S.channel,text:input.value.trim()});input.value='';S.previous='';await loadMessages()}catch(err){notify(err.message)}finally{$('sendButton').disabled=false}};
 $('messageInput').onkeydown=e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();$('messageForm').requestSubmit()}};
 $('profileForm').onsubmit=async e=>{e.preventDefault();try{const r=await api('profile',{name:$('profileName').value,bio:$('profileBio').value});S.user=r.user;setupProfile();notify('Perfil actualizado')}catch(err){notify(err.message)}};
-$('logoutButton').onclick=async()=>{try{await api('logout',{})}catch{}clearInterval(S.timer);S.user=null;$('authOverlay').classList.remove('hidden');$('codeForm').classList.add('hidden');$('emailForm').classList.remove('hidden');$('authFeedback').textContent=''};
+$('logoutButton').onclick=async()=>{try{await api('logout',{})}catch{}clearInterval(S.timer);clearInterval(S.usageTimer);S.user=null;$('authOverlay').classList.remove('hidden');$('codeForm').classList.add('hidden');$('emailForm').classList.remove('hidden');$('authFeedback').textContent=''};
 (async()=>{try{await bootstrap()}catch(err){$('authOverlay').classList.remove('hidden');if(err.status!==401)$('authFeedback').textContent=err.message}})();
 })();
