@@ -74,7 +74,7 @@ async function handleDashboardAuth(req,res) {
     return res.status(200).json({ok:true});
   }
   if(body.action!=='login') return res.status(400).json({error:'Acción desconocida.'});
-  if(String(body.username||'').length>80 || String(body.password||'').length>256)
+  if(String(body.username||'').length>254 || String(body.password||'').length>256)
     return res.status(400).json({error:'Credenciales no válidas.'});
   const identity=checkDashboardCredentials(body.username,body.password);
   if(!identity)return res.status(401).json({error:'Usuario o contraseña incorrectos.'});
