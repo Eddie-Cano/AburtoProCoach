@@ -2,8 +2,32 @@
 'use strict';
 const $=id=>document.getElementById(id);
 const el=(tag,text)=>{const e=document.createElement(tag);if(text!==undefined)e.textContent=String(text);return e};
+async function loadMetrics(team){
+ const box=$('communityMetrics');box.textContent='Consultando actividad…';
+ try{
+  const data=await team.api('analytics');
+  const s=data.summary||{};
+  const groups=[
+   ['Registrados',s.registered],
+   ['Instalación detectada',s.installed],
+   ['Activos en 24 h',s.active_24h],
+   ['Activos en 7 días',s.active_7d],
+   ['Activos en 30 días',s.active_30d],
+   ['Instalados en iOS',s.installed_ios],
+   ['Instalados en Android',s.installed_android]
+  ];
+  box.replaceChildren();
+  for(const [title,value] of groups){
+   const card=el('article');card.className='usage-metric';
+   const number=el('strong',Number(value??0).toLocaleString('es-MX'));
+   const label=el('span',title);
+   card.append(number,label);box.append(card);
+  }
+ }catch(error){box.textContent='No se pudieron cargar las estadísticas: '+error.message}
+}
 async function load(){
  const team=window.Team;if(!team||!['admin','coach'].includes(team.S.user?.role))return;
+ loadMetrics(team);
  const wrap=$('memberList');wrap.textContent='Cargando atletas…';
  try{
   const data=await team.api('members');wrap.replaceChildren();
@@ -16,7 +40,13 @@ async function load(){
   for(const m of data.members||[]){
    if(!['admin','coach'].includes(m.role)){const option=el('option',m.display_name+' · '+m.email);option.value=m.id;select.append(option);const other=el('option',m.display_name+' · '+m.email);other.value=m.id;copy.append(other)}
    const row=el('div');row.className='member-row';
-   const info=el('div');info.append(el('strong',m.display_name),el('small',m.email+' · '+m.role+(m.founding?' · Founding':'')));row.append(info);
+   const info=el('div');info.append(el('strong',m.display_name),el('small',m.email+' · '+m.role+(m.founding?' · Founding':'')));
+   const usage=el('small');
+   usage.className='member-usage';
+   const last=m.last_active_at?new Date(m.last_active_at).toLocaleString('es-MX'):'Sin actividad registrada';
+   const installed=m.installed_at?'Instalación detectada ('+(m.installed_platform||'otro')+')':'Sin instalación detectada';
+   usage.textContent=installed+' · Último uso: '+last+' · Aperturas: '+Number(m.open_count||0);
+   info.append(usage);row.append(info);
    if(team.S.user.role==='admin'&&!['admin','coach'].includes(m.role)){
     const box=el('div');box.className='member-controls';
     const role=el('select');for(const v of ['member','moderator']){const o=el('option',v);o.value=v;o.selected=m.role===v;role.append(o)}
