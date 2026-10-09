@@ -32,3 +32,14 @@ test('PWA manifest is standalone and matches page link',()=>{
  assert.match(index,/src="\/pwa-install\.js"/);
  assert.ok(!index.includes('\\n  <meta name="apple'));
 });
+
+test('real PNG icons have the declared sizes',()=>{
+ for(const n of [192,512]){
+  const b=readFileSync(new URL('../assets/pwa/icon-'+n+'.png',import.meta.url));
+  assert.equal(b.subarray(1,4).toString(),'PNG');
+  assert.equal(b.readUInt32BE(16),n);
+  assert.equal(b.readUInt32BE(20),n);
+  const icon=manifest.icons.find(x=>x.src.endsWith('icon-'+n+'.png'));
+  assert.equal(icon?.sizes,n+'x'+n);
+ }
+});
