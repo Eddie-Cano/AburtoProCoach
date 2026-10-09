@@ -110,3 +110,15 @@ a{color:inherit}em{font-style:normal;color:var(--red)}.hidden{display:none!impor
  .admin-grid{grid-template-columns:1fr}.auth-card{padding:15px 4px 32px}
 }
 @media(max-width:370px){.cards{grid-template-columns:1fr}.editorial h1{font-size:50px}}
+
+
+.usage-summary{padding:24px 0 12px;border-bottom:1px solid var(--line)}
+.usage-description{color:var(--muted);font-size:12px;line-height:1.7;max-width:680px}
+.usage-metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(138px,1fr));gap:10px;margin:20px 0}
+.usage-metric{padding:18px;background:#17181d;border:1px solid #363039;border-radius:10px;display:flex;flex-direction:column;gap:7px}
+.usage-metric strong{font:900 36px/1 var(--display);color:white}
+.usage-metric span{font-size:11px;color:#adb0b8}
+.member-usage{display:block;margin-top:7px;color:#c19da8!important;line-height:1.55;overflow-wrap:anywhere}
+.app-privacy-note{font-size:11px;line-height:1.65;color:var(--muted);max-width:550px}
+.app-privacy-note a{color:#f094a4}
+@media(max-width:760px){.usage-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}
