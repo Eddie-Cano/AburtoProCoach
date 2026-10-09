@@ -1,0 +1,26 @@
+{
+  "id": "/",
+  "name": "ABURTO PRO COACH",
+  "short_name": "ABURTO",
+  "description": "Accede a Aburto Pro Coach desde tu pantalla de inicio.",
+  "lang": "es-MX",
+  "start_url": "/?source=pwa",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#090909",
+  "theme_color": "#9d2035",
+  "icons": [
+    {
+      "src": "/assets/pwa/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/assets/logo/aburto-original.png",
+      "sizes": "any",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}
