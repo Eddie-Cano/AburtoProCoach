@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="es-MX"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>ABURTO TEAM · Comunidad</title>
+<meta name="description" content="Tu comunidad de entrenamiento, posing y preparación con Andrés Aburto.">
+<meta name="theme-color" content="#0a0b0e"><meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="ABURTO TEAM"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="robots" content="noindex,nofollow">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="apple-touch-icon" href="/assets/pwa/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800;900&family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/app/app.css">
+<script src="/pwa-install.js" defer></script><script src="/app/app.js" defer></script><script src="/app/admin.js" defer></script>
+</head><body>
+<div class="app-shell" id="shell">
+  <aside class="icon-rail" aria-label="Secciones">
+    <a href="/app/" class="rail-brand" aria-label="Inicio ABURTO TEAM"><img src="/assets/logo/aburto-original.png" alt=""></a>
+    <div class="rail-stack">
+      <button class="rail-action active" data-view="chat" aria-label="Comunidad" title="Comunidad"><span>⌗</span><small>Chat</small></button>
+      <button class="rail-action" data-view="resources" aria-label="Biblioteca y cursos" title="Biblioteca"><span>▤</span><small>Cursos</small></button>
+      <button class="rail-action" data-view="store" aria-label="Tienda" title="Tienda"><span>▣</span><small>Tienda</small></button>
+      <button class="rail-action" data-view="profile" aria-label="Mi perfil" title="Mi perfil"><span>♙</span><small>Perfil</small></button>
+      <button class="rail-action hidden" data-view="admin" id="adminTab" aria-label="Administración" title="Administración"><span>⚙</span><small>Admin</small></button>
+    </div>
+    <a class="rail-external" href="/" title="Ir al sitio de Andrés">↗</a>
+  </aside>
+  <aside class="channel-pane" id="channelPane" aria-label="Canales de conversación">
+    <div class="server-heading"><div class="server-kicker">ANDRÉS ABURTO</div><strong>ABURTO <em>TEAM</em></strong><span>EL TRABAJO HABLA.</span></div>
+    <div class="channel-list" id="channelList"><div class="loading-label">Cargando canales…</div></div>
+    <div class="server-footer"><span class="pulse"></span><span id="connectionLabel">Comunidad privada</span></div>
+  </aside>
+  <main class="workspace">
+    <header class="workspace-head">
+      <button id="channelToggle" class="menu-button" type="button" aria-label="Mostrar canales" aria-expanded="false">☰</button>
+      <div class="current-location"><span class="hash-head" id="viewSymbol">#</span><div><strong id="viewTitle">general</strong><small id="viewDescription">Conversación de la comunidad</small></div></div>
+      <div class="header-actions"><span class="privacy-tag">● ABURTO TEAM</span><button id="headerProfile" class="avatar-button" type="button" aria-label="Ver perfil">A</button></div>
+    </header>
+    <section id="chatView" class="view active" aria-label="Mensajes">
+      <div id="messages" class="messages" aria-live="polite"><div class="empty-feed"><span>ABURTO TEAM</span><h2>LA COMUNIDAD<br>EMPIEZA AQUÍ.</h2><p>Accede con tu correo para ver los mensajes.</p></div></div>
+      <form id="messageForm" class="composer"><label class="sr-only" for="messageInput">Escribe un mensaje</label><textarea id="messageInput" maxlength="2000" rows="1" placeholder="Escribe en #general..." required></textarea><button id="sendButton" type="submit" title="Enviar mensaje">➤</button></form>
+      <p class="compose-tip">Respeto, disciplina y progreso. No compartas datos médicos privados.</p>
+    </section>
+    <section id="resourcesView" class="view scroll-view" aria-label="Cursos y biblioteca">
+      <div class="editorial"><span class="overline">THE ABURTO METHOD</span><h1>CONOCIMIENTO<br><em>QUE SE APLICA.</em></h1><p>Herramientas, materiales y cursos de Andrés. Los recursos exclusivos se habilitan según tus permisos.</p></div>
+      <div id="resourceCards" class="cards"></div>
+    </section>
+    <section id="storeView" class="view scroll-view" aria-label="Tienda">
+      <div class="editorial"><span class="overline">REPRESENTA TU DISCIPLINA</span><h1>ABURTO<br><em>STORE.</em></h1><p>Explora productos digitales y próximos lanzamientos de ropa y accesorios. Consultar el catálogo no requiere pago.</p></div>
+      <h2 class="section-label">PRODUCTOS DIGITALES</h2><div id="digitalCards" class="cards"></div>
+      <h2 class="section-label">MERCH / PRÓXIMAMENTE</h2><div id="merchCards" class="cards"></div>
+    </section>
+    <section id="profileView" class="view scroll-view" aria-label="Mi perfil">
+      <div class="editorial"><span class="overline">TU ESPACIO</span><h1>MI <em>PERFIL.</em></h1></div>
+      <div class="profile-block"><div class="profile-circle" id="profileAvatar">A</div><div><strong id="profileHandle">Atleta</strong><p id="profileEmail">Correo verificado</p><span id="profileRole" class="tag">ATLETA</span></div></div>
+      <form id="profileForm" class="profile-form"><label>Nombre visible<input id="profileName" required minlength="2" maxlength="60" autocomplete="nickname"></label><label>Presentación<textarea id="profileBio" rows="4" maxlength="240" placeholder="Tu objetivo, disciplina y motivación"></textarea></label><button type="submit" class="red-button">Guardar perfil</button></form>
+      <button id="logoutButton" class="quiet-button" type="button">Cerrar sesión</button>
+    </section>
+    <section id="adminView" class="view scroll-view" aria-label="Administración de la comunidad">
+      <div class="editorial"><span class="overline">CONTROL DE ACCESO</span><h1>PANEL <em>TEAM.</em></h1><p>Gestión de atletas y salas de coaching. Solo personal autorizado.</p></div>
+      <div class="admin-grid"><div class="admin-card"><h2>CREAR SALA PRIVADA</h2><form id="roomForm"><label>Nombre de la sala<input id="roomTitle" placeholder="Posing · Atleta" maxlength="60" required></label><label>Atleta<select id="roomMember" required><option value="">Seleccionar atleta</option></select></label><button type="submit" class="red-button">Crear sala</button></form><hr class="admin-divider"><h2>INVITAR A SALA</h2><form id="inviteForm"><label>Sala privada<select id="inviteChannel" required><option value="">Selecciona sala</option></select></label><label>Atleta<select id="inviteMember" required><option value="">Selecciona atleta</option></select></label><button type="submit" class="red-button">Dar acceso</button></form></div><div class="admin-card"><h2>MIEMBROS</h2><div id="memberList">Cargando atletas…</div></div></div>
+    </section>
+  </main>
+</div>
+<div id="authOverlay" class="auth-overlay" role="dialog" aria-modal="true" aria-label="Entrar a ABURTO TEAM">
+  <div class="auth-card"><img src="/assets/logo/aburto-original.png" alt="Andrés Aburto Pro Coach" class="auth-logo"><span class="overline">THE WORK SPEAKS</span><h1>NO ES SOLO<br><em>UN EQUIPO.</em></h1><p>Entra a tu comunidad. Canales, atletas, conocimiento y disciplina en un mismo lugar.</p>
+    <form id="emailForm" class="auth-form"><label for="loginName">Tu nombre</label><input id="loginName" maxlength="60" minlength="2" placeholder="Nombre que verá el equipo" autocomplete="name"><label for="loginEmail">Correo electrónico</label><input id="loginEmail" type="email" required maxlength="254" placeholder="tu@correo.com" autocomplete="email"><button type="submit" class="red-button" id="requestButton">Recibir código de acceso →</button></form>
+    <form id="codeForm" class="auth-form hidden"><label for="loginCode">Código de 6 dígitos</label><input id="loginCode" type="text" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="one-time-code" placeholder="000000" required><button type="submit" id="verifyButton" class="red-button">Entrar a ABURTO TEAM →</button><button type="button" id="changeEmail" class="text-button">Cambiar correo</button></form>
+    <p id="authFeedback" role="status" aria-live="polite"></p><small>Te enviamos un código de verificación. No necesitas contraseña. Al participar aceptas nuestras <a href="/aviso-de-privacidad.html" target="_blank" rel="noopener">normas de privacidad</a> y reglas de respeto.</small>
+  </div>
+</div>
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+</body></html>

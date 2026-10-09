@@ -22,6 +22,7 @@ async function redis(...command) {
 
 export const config = {maxDuration:300};
 export default async function handler(req, res) {
+  if(req.query?.community==='1')return (await import('../lib/community-handler.js')).default(req,res);
   if(req.query?.library==='1')return (await import('../lib/library-handler.js')).default(req,res);
   res.setHeader('Cache-Control', 'no-store');
   const redisReady = Boolean(process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN);
