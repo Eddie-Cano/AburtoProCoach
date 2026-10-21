@@ -269,7 +269,7 @@ export async function sendTransactionalEmail({
   return { sent: true, id: String(data?.id || '') };
 }
 
-export async function sendPurchaseDeliveryEmail({ sale, delivery, eventId }) {
+export async function sendPurchaseDeliveryEmail({ sale, delivery, eventId, cc }) {
   if (!delivery?.granted || !sale?.email) {
     return { sent: false, reason: delivery?.reason || 'delivery_not_granted' };
   }
@@ -286,6 +286,7 @@ export async function sendPurchaseDeliveryEmail({ sale, delivery, eventId }) {
   }
   return sendTransactionalEmail({
     to: sale.email,
+    cc,
     ...content,
     idempotencyKey: `aburto/delivery/${sale.checkoutSessionId || eventId}`,
     tags: [
@@ -294,3 +295,4 @@ export async function sendPurchaseDeliveryEmail({ sale, delivery, eventId }) {
     ],
   });
 }
+

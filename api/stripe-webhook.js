@@ -242,6 +242,11 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Webhook inválido.' });
   }
 
+  return processVerifiedStripeEvent(event, req, res, sandboxSignature);
+}
+
+// Only call after server-side verification against Stripe or a valid webhook signature.
+export async function processVerifiedStripeEvent(event, req, res, sandboxSignature = false, options = {}) {
   if (['charge.refunded', 'charge.dispute.created'].includes(event.type)) {
     const charge = event?.data?.object || {};
     if (charge.livemode !== true || sandboxSignature) return res.status(200).json({ received: true, ignored: true });
@@ -368,7 +373,7 @@ export default async function handler(req, res) {
       }));
       sale.deliveryStatus = delivery.granted ? 'Biblioteca habilitada' : `Pendiente: ${delivery.reason || 'no concedido'}`;
       if (!delivery.granted) throw new Error('Library access pending');
-      if (!customerEmail.sent) customerEmail = await sendPurchaseDeliveryEmail({ sale, delivery, eventId: event.id });
+      if (!customerEmail.sent) customerEmail = await sendPurchaseDeliveryEmail({ sale, delivery, eventId: event.id, cc: options.cc });
       sale.buyerEmailStatus = customerEmail.sent ? 'Enviado' : 'Pendiente';
       sale.deliveryStatus = customerEmail.sent ? 'Biblioteca + correo enviados' : 'Biblioteca habilitada; correo pendiente';
       await updateAccess(googleToken,access.record,{mailState:customerEmail.sent?'Enviado':'Pendiente',...(customerEmail.id?{mailId:customerEmail.id}:{})});
@@ -415,3 +420,4 @@ export default async function handler(req, res) {
     return res.status(503).json({ error: 'Pago confirmado; entrega pendiente. Se reintentará automáticamente.' });
   }
 }
+

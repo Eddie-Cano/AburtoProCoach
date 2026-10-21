@@ -1,3 +1,4 @@
+import { recoverPaidDelivery } from '../lib/paid-delivery-recovery.js';
 import { buildPurchaseDeliveryEmail } from './_email.js';
 import { PACK_PRODUCTS } from '../lib/launch-config.js';
 
@@ -11,6 +12,7 @@ const PRODUCTS = {
 
 export default function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
+  if (req.query?.recovery === 'paid-delivery') return recoverPaidDelivery(req, res);
   if (req.method !== 'GET') return res.status(405).json({ error: 'Método no permitido.' });
 
   const key = String(req.query?.producto || 'dia-29');
@@ -29,3 +31,4 @@ export default function handler(req, res) {
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
   return res.status(200).send(preview.html);
 }
+
