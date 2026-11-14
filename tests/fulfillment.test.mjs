@@ -56,6 +56,10 @@ test('a paid bundle grants three files, survives email failure, and deduplicates
       if (body.tags[0].value === 'digital_delivery') {
         buyerEmails++;
         assert.equal(body.to[0], 'fixture@example.com');
+        for (const content of [body.text, body.html]) {
+          assert.match(content, session.metadata.language === 'en' ? /thank you for your purchase/i : /gracias por tu compra/i);
+          assert.doesNotMatch(content, /cortesía|complimentary/i);
+        }
         assert.equal(body.from,'Andrés Aburto <compras@aburtoprocoach.com>');
         if (session.metadata.language === 'en') {
           for (const file of deliveryProducts('starter-pack', 'en')) assert.ok(body.text.includes('producto='+file.slug));

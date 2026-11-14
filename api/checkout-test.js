@@ -56,7 +56,11 @@ export default async function handler(req, res) {
       signal: AbortSignal.timeout(15000),
     });
     const data = await response.json().catch(() => ({}));
-    if (!response.ok || !data.url) return res.status(502).json({ error: data?.error?.message || 'Stripe Sandbox no respondió.' });
+    if (!response.ok || !data.url) {
+      // Stripe errors can include fragments of API credentials. Keep them out of the browser and logs.
+      console.error('Stripe Sandbox session creation failed:', response.status);
+      return res.status(502).json({ error: 'No se pudo abrir Stripe Sandbox. Si persiste, revisa la configuración del entorno de prueba.' });
+    }
     return res.status(200).json({ url: data.url });
   } catch {
     return res.status(503).json({ error: 'No pudimos abrir el checkout Sandbox.' });
